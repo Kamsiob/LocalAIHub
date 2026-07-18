@@ -24,7 +24,18 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from .. import config
-from .comfyui import MODEL_CATEGORIES, MODEL_EXTS, MODELS_DIR, _human_size
+from .comfyui import COMFYUI_ROOT, MODEL_CATEGORIES, MODEL_EXTS, MODELS_DIR, _human_size
+
+GGUF_NODE_DIR = COMFYUI_ROOT / "custom_nodes" / "ComfyUI-GGUF"
+GGUF_WARNING = (
+    "This is a GGUF model. ComfyUI needs the ComfyUI-GGUF custom node to load it, "
+    "and it isn't installed in custom_nodes/ — the file will download fine, but it "
+    "won't load in ComfyUI until you add that node."
+)
+
+
+def gguf_node_present() -> bool:
+    return GGUF_NODE_DIR.is_dir()
 
 MANIFEST_FILE = config.CONFIG_DIR / "comfy_models.json"
 USER_AGENT = "local-ai-hub/1.0 (+https://github.com/Kamsiob/local-ai-hub)"
@@ -222,10 +233,19 @@ def _hf_remote_sha(repo: str, path_in_repo: str, revision: str):
         status, headers = e.code, e.headers  # a 302 carries X-Linked-Etag / X-Linked-Size
     if status not in (200, 301, 302, 303, 307, 308):
         return (None, None)  # 404 etc. — do NOT read the error body's Content-Length
+    # X-Linked-Etag is the true sha256 for LFS files; a direct 200's ETag is a git
+    # sha1 (not sha256), so it's ignored below by the length check.
     sha = (headers.get("X-Linked-Etag") or (headers.get("ETag") if status == 200 else "") or "").strip('"').lower()
-    # X-Linked-Size is authoritative for LFS files; Content-Length is only the real
-    # file size on a direct 200 (on a 302 it's the redirect page, not the model).
+    # Size: X-Linked-Size (LFS) is authoritative; a direct 200 has a real
+    # Content-Length; otherwise follow the redirect to read the CDN Content-Length
+    # (small non-LFS files 302 to a CDN with no X-Linked-Size).
     size = headers.get("X-Linked-Size") or (headers.get("Content-Length") if status == 200 else None)
+    if size is None:
+        try:
+            with _request(url, "HEAD", follow=True) as r2:
+                size = r2.headers.get("Content-Length")
+        except Exception:
+            size = None
     return (sha if len(sha) == 64 else None, int(size) if size else None)
 
 
@@ -417,7 +437,8 @@ def analyze_install(link: str) -> dict:
     """
     out = {"ok": False, "source": None, "filename": "", "size_human": "",
            "download_url": None, "expected_sha": None, "expected_size": None,
-           "category": None, "category_reason": "", "provenance": {}, "error": None}
+           "category": None, "category_reason": "", "provenance": {},
+           "gguf_warning": None, "error": None}
     link = (link or "").strip()
     if not link.startswith("http"):
         out["error"] = "Please paste a full http(s) link."
@@ -502,6 +523,9 @@ def analyze_install(link: str) -> dict:
             out["size_human"] = _human_size(out["expected_size"])
         if Path(out["filename"]).suffix.lower() not in MODEL_EXTS:
             out["category_reason"] += " (unrecognized extension)"
+        # Flag the missing-node case up front (don't let it fail silently later).
+        if Path(out["filename"]).suffix.lower() == ".gguf" and not gguf_node_present():
+            out["gguf_warning"] = GGUF_WARNING
         out["ok"] = bool(out["download_url"])
         if not out["ok"]:
             out["error"] = "Could not resolve a download URL."
@@ -553,4 +577,7 @@ def install_model(link: str, category: str,
     if new_sha:
         prov["sha256"] = new_sha
     set_source(str(dest), prov)  # so it's immediately update-trackable
-    return {"ok": True, "path": str(dest), "category": category, "filename": filename}
+    result = {"ok": True, "path": str(dest), "category": category, "filename": filename}
+    if filename.lower().endswith(".gguf") and not gguf_node_present():
+        result["warning"] = GGUF_WARNING
+    return result

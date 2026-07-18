@@ -293,6 +293,8 @@ class Backend(QObject):
                 res = comfy_models.install_model(link, category, progress_cb=cb)
                 if res.get("ok"):
                     self.notify.emit(f"Installed {res['filename']} → {res['category']}")
+                    if res.get("warning"):
+                        self.notify.emit("⚠ " + res["warning"])
                 else:
                     self.notify.emit(f"Install failed: {res.get('error')}")
             except Exception as exc:  # noqa: BLE001

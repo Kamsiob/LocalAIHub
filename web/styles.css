@@ -341,6 +341,12 @@ body {
 .ii-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0;
   font-size: 13px; color: var(--text-muted); }
 .ii-row b { color: var(--text); font-weight: 600; word-break: break-all; text-align: right; }
+.m-warn { display: flex; gap: 9px; align-items: flex-start; margin-top: 12px;
+  padding: 11px 13px; border-radius: 12px; font-size: 12.5px; line-height: 1.5;
+  color: var(--warn); font-weight: 500;
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); }
+.m-warn svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
 
 /* log modal */
 .log-modal { width: min(660px, 94vw); }

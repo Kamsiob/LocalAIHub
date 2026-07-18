@@ -348,6 +348,7 @@
         <div class="m-hint" id="inMsg"></div>
         <div id="inDetails" style="display:none">
           <div class="install-info" id="inInfo"></div>
+          <div class="m-warn" id="inWarn" style="display:none"></div>
           <div class="m-title" style="margin-top:14px">Destination folder</div>
           <div class="m-row"><select id="inFolder" class="select">${opts}</select></div>
           <div class="m-hint" id="inFolderHint"></div>
@@ -376,6 +377,13 @@
         bd.querySelector("#inInfo").innerHTML =
           `<div class="ii-row"><span>File</span><b>${esc(r.filename)}</b></div>` +
           `<div class="ii-row"><span>Source</span><b>${esc(r.source)}${r.size_human ? " · " + esc(r.size_human) : ""}</b></div>`;
+        const warn = bd.querySelector("#inWarn");
+        if (r.gguf_warning) {
+          warn.innerHTML = I.warn + "<span>" + esc(r.gguf_warning) + "</span>";
+          warn.style.display = "flex";
+        } else {
+          warn.style.display = "none";
+        }
         const sel = bd.querySelector("#inFolder");
         const hint = bd.querySelector("#inFolderHint");
         if (r.category) {

@@ -39,6 +39,9 @@ you click. Nothing runs in the background.
   available), and files it in the correct folder based on file type / source
   metadata — and **asks you** to pick the folder when it can't tell. The
   installed model's source is recorded, so future updates are one click.
+  Installing a **`.gguf`** model when the `ComfyUI-GGUF` custom node is missing
+  still downloads the file but shows a plain warning that it won't load until you
+  add that node — flagged up front rather than failing silently later.
 - **Crash-aware** — if a service fails to start or dies while running (relevant
   for ComfyUI, which has a known GPU crash history on some hardware), the app
   shows it in red as **“Stopped unexpectedly”** with a **View log** button
