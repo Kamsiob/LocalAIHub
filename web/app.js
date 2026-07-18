@@ -43,11 +43,11 @@
     { name: "gemma2:2b",   size_human: "1.6 GB", loaded: false, vram_human: "" },
   ];
   const SAMPLE_COMFY = [
-    { category_label: "Diffusion models", name: "flux1-dev-Q8_0.gguf",       size_human: "12.5 GB", format: "GGUF" },
-    { category_label: "Checkpoints",      name: "sd_xl_base_1.0.safetensors", size_human: "6.5 GB", format: "safetensors" },
-    { category_label: "Text encoders",    name: "clip_l.safetensors",         size_human: "246 MB", format: "safetensors" },
-    { category_label: "VAE",              name: "sdxl_vae.safetensors",       size_human: "320 MB", format: "safetensors" },
-    { category_label: "LoRAs",            name: "add-detail-xl.safetensors",  size_human: "144 MB", format: "safetensors" },
+    { category_label: "Diffusion models", name: "flux1-dev-Q8_0.gguf",       size_human: "12.5 GB", format: "GGUF",        source: "huggingface", update: { available: true,  detail: "Update available" } },
+    { category_label: "Checkpoints",      name: "sd_xl_base_1.0.safetensors", size_human: "6.5 GB", format: "safetensors", source: "civitai",     update: { available: false, detail: "Up to date" } },
+    { category_label: "Text encoders",    name: "clip_l.safetensors",         size_human: "246 MB", format: "safetensors", source: "huggingface", update: null },
+    { category_label: "VAE",              name: "sdxl_vae.safetensors",       size_human: "320 MB", format: "safetensors", source: null,          update: null },
+    { category_label: "LoRAs",            name: "add-detail-xl.safetensors",  size_human: "144 MB", format: "safetensors", source: null,          update: null },
   ];
 
   // ---- backend bridge -----------------------------------------------------
@@ -146,9 +146,27 @@
           <span class="model-name" title="${esc(m.name)}">${esc(m.name)}</span>
           <span class="size">${esc(m.size_human || "")}</span>
           <span class="badge">${esc(m.format || "")}</span>
+          ${comfyAction(m)}
         </div>`).join("");
     });
     return `<div class="models"><div class="models-inner">${body}</div></div>`;
+  }
+
+  // The per-row update control, mirroring Ollama's Update but source-aware:
+  // no source -> Set source; source set + unchecked -> Check; then Update / Up to date.
+  function comfyAction(m) {
+    const p = esc(m.path || "");
+    const nm = esc(m.name || "");
+    if (!m.source) {
+      return `<button class="btn-sm" data-act="csource" data-path="${p}" data-name="${nm}">Set source</button>`;
+    }
+    if (m.update && m.update.available === true) {
+      return `<button class="btn-sm accent" data-act="cupdate" data-path="${p}">Update</button>`;
+    }
+    if (m.update && m.update.available === false) {
+      return `<span class="cu-uptodate" title="${esc((m.update && m.update.detail) || "")}">Up to date</span>`;
+    }
+    return `<button class="btn-sm" data-act="ccheck" data-path="${p}">Check</button>`;
   }
 
   // ---- theme --------------------------------------------------------------
@@ -221,8 +239,79 @@
     else window.open(url, "_blank");
   }
 
+  // ---- ComfyUI model update actions --------------------------------------
+  function onComfyCheck(path) {
+    if (!path) return;
+    if (backend && backend.comfy_check) { toast("Checking for update…"); backend.comfy_check(path); }
+    else toast("Not connected to backend");
+  }
+  function onComfyUpdate(path) {
+    if (!path) return;
+    if (backend && backend.comfy_update) { toast("Starting update…"); backend.comfy_update(path); }
+    else toast("Not connected to backend");
+  }
+
+  let modalPath = null;
+  function buildModal() {
+    const bd = document.createElement("div");
+    bd.className = "modal-backdrop";
+    bd.id = "sourceModal";
+    bd.innerHTML = `
+      <div class="modal">
+        <h3>Set model source</h3>
+        <div class="sub" id="smName"></div>
+        <div class="method">
+          <div class="m-title">Auto-detect on Civitai</div>
+          <button class="btn-sm" id="smCivitai">Identify by file hash</button>
+          <div class="m-hint">Hashes the file and asks Civitai. Works for models hosted on Civitai; large files take a moment.</div>
+        </div>
+        <div class="method">
+          <div class="m-title">Hugging Face repo</div>
+          <div class="m-row"><input id="smHf" placeholder="org/name or huggingface.co URL" /><button class="btn-sm" id="smHfBtn">Link</button></div>
+          <div class="m-hint">Finds this filename inside the repo (e.g. Comfy-Org/Qwen-Image-Edit_ComfyUI).</div>
+        </div>
+        <div class="method">
+          <div class="m-title">Direct URL</div>
+          <div class="m-row"><input id="smUrl" placeholder="https://…/model.safetensors" /><button class="btn-sm" id="smUrlBtn">Link</button></div>
+          <div class="m-hint">Re-downloads from this URL when it changes.</div>
+        </div>
+        <div class="modal-foot"><button class="btn-ghost" id="smClose">Close</button></div>
+      </div>`;
+    document.body.appendChild(bd);
+    bd.addEventListener("click", e => { if (e.target === bd) closeModal(); });
+    bd.querySelector("#smClose").addEventListener("click", closeModal);
+    bd.querySelector("#smCivitai").addEventListener("click", () => {
+      if (backend && backend.comfy_identify) { toast("Identifying on Civitai…"); backend.comfy_identify(modalPath); }
+      closeModal();
+    });
+    bd.querySelector("#smHfBtn").addEventListener("click", () => {
+      const v = bd.querySelector("#smHf").value.trim();
+      if (v && backend && backend.comfy_set_hf) { toast("Linking to Hugging Face…"); backend.comfy_set_hf(modalPath, v); }
+      closeModal();
+    });
+    bd.querySelector("#smUrlBtn").addEventListener("click", () => {
+      const v = bd.querySelector("#smUrl").value.trim();
+      if (v && backend && backend.comfy_set_url) { toast("Linking URL…"); backend.comfy_set_url(modalPath, v); }
+      closeModal();
+    });
+  }
+  function openSourceModal(path, name) {
+    modalPath = path;
+    const bd = document.getElementById("sourceModal");
+    bd.querySelector("#smName").textContent = name || path || "";
+    bd.querySelector("#smHf").value = "";
+    bd.querySelector("#smUrl").value = "";
+    bd.classList.add("show");
+  }
+  function closeModal() {
+    const bd = document.getElementById("sourceModal");
+    if (bd) bd.classList.remove("show");
+    modalPath = null;
+  }
+
   // ---- event wiring -------------------------------------------------------
   function wire() {
+    buildModal();
     document.getElementById("brandMark").innerHTML = I.spark;
     document.getElementById("sunIcon").innerHTML = I.sun;
     document.getElementById("moonIcon").innerHTML = I.moon;
@@ -237,6 +326,9 @@
       if (act === "toggle") onToggle(svc);
       else if (act === "expand") onExpand(svc);
       else if (act === "update") onUpdate(el.dataset.model);
+      else if (act === "csource") openSourceModal(el.dataset.path, el.dataset.name);
+      else if (act === "ccheck") onComfyCheck(el.dataset.path);
+      else if (act === "cupdate") onComfyUpdate(el.dataset.path);
     });
 
     document.querySelectorAll(".browse-link").forEach(a => {
