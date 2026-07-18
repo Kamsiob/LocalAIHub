@@ -1,6 +1,6 @@
 # local-ai-hub
 
-A personal hub for local AI experiments and tooling.
+A personal hub for seeing local AI models you have downloaded using Ollama. Also take Open Web UI into account + Comfy for image generation models. Built initially for Bazzite (desktop) using the AMD Max+ 395, 64gb chip. Trying to make it so it works with others.
 
 ## Requirements
 
