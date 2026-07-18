@@ -13,10 +13,15 @@ Type=simple
 WorkingDirectory=/home/Kamsiob/ComfyUI
 # GPU environment — replicated verbatim from the user's validated
 # start_comfyui_rocm.sh. HSA_ENABLE_SDMA=0 is the Strix Halo crash mitigation.
+# The script explicitly `unset HSA_OVERRIDE_GFX_VERSION`; we do the same, because
+# a globally-set gfx override (a common Strix Halo tweak) breaks this ROCm build.
+UnsetEnvironment=HSA_OVERRIDE_GFX_VERSION
 Environment="HIP_VISIBLE_DEVICES=0"
 Environment="HSA_ENABLE_SDMA=0"
 Environment="HSA_USE_SVM=0"
 Environment="PYTORCH_ALLOC_CONF=expandable_segments:True,garbage_collection_threshold:0.8,max_split_size_mb:512"
+# Run the ROCm-built venv interpreter directly (equivalent to the script's
+# `source venv/bin/activate; python3 main.py`), NOT a bare system python.
 ExecStart=/home/Kamsiob/ComfyUI/venv/bin/python main.py
 Restart=on-failure
 RestartSec=5
