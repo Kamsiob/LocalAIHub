@@ -29,7 +29,8 @@ you click. Nothing runs in the background.
   **Hugging Face repo**, or a **direct URL** — and then **Update** checks that
   source for a newer version and downloads it (verified by size + SHA-256, then
   atomically replaced). Provenance is stored locally in
-  `~/.config/local-ai-hub/comfy_models.json`.
+  `~/.config/local-ai-hub/comfy_models.json`. A model whose source can't be
+  determined still lists normally, shown as **“no update source.”**
 - **Light & dark themes** — a polished pill toggle; your choice persists between
   launches.
 - **Browse links** — quick jumps to the Ollama Library, Hugging Face, and Civitai.
