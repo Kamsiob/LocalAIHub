@@ -2,11 +2,12 @@
 from .base import Service, ServiceStatus
 from .ollama import OllamaService, ModelInfo
 from .openwebui import OpenWebUIService
+from .comfyui import ComfyUIService
 
-# Registry grows as each service module lands (comfyui next).
 SERVICES = {
     "ollama": OllamaService,
     "openwebui": OpenWebUIService,
+    "comfyui": ComfyUIService,
 }
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "OllamaService",
     "ModelInfo",
     "OpenWebUIService",
+    "ComfyUIService",
     "SERVICES",
 ]
