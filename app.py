@@ -28,6 +28,7 @@ sys.path.insert(0, str(ROOT))
 
 from hub import config  # noqa: E402
 from hub.services import ComfyUIService, OllamaService, OpenWebUIService  # noqa: E402
+from hub.services import comfy_models  # noqa: E402
 
 
 class Backend(QObject):
@@ -84,8 +85,94 @@ class Backend(QObject):
             comfyui_models = self.comfyui.list_models()
         except Exception:
             comfyui_models = []
+        # Enrich each ComfyUI model with its known source + last cached update
+        # check (no network here — checks happen only on explicit request).
+        manifest = comfy_models.load_manifest()
+        mroot = self.comfyui.models_dir
+        for m in comfyui_models:
+            abs_path = str((mroot / m["category"] / m["name"]).resolve())
+            src = manifest.get(abs_path) or {}
+            m["path"] = abs_path
+            m["source"] = src.get("source")
+            m["update"] = src.get("last_check")
 
         return {"services": services, "models": models, "comfyui_models": comfyui_models}
+
+    # --- ComfyUI model provenance + updates ---------------------------------
+    def _emit_state(self) -> None:
+        self.state_changed.emit(json.dumps(self._collect()))
+
+    @Slot(str)
+    def comfy_identify(self, path: str) -> None:
+        """Auto-identify a model on Civitai by hashing it (may take a while)."""
+        def work() -> None:
+            self.notify.emit(f"Identifying {Path(path).name} on Civitai… (hashing)")
+            try:
+                res = comfy_models.identify_civitai(path)
+                self.notify.emit(res.get("detail", "done"))
+            except Exception as exc:  # noqa: BLE001
+                self.notify.emit(f"Identify failed: {exc}")
+            self._emit_state()
+        threading.Thread(target=work, daemon=True).start()
+
+    @Slot(str, str)
+    def comfy_set_hf(self, path: str, repo: str) -> None:
+        def work() -> None:
+            try:
+                res = comfy_models.resolve_hf(path, repo)
+                self.notify.emit(res.get("detail", "done"))
+            except Exception as exc:  # noqa: BLE001
+                self.notify.emit(f"Hugging Face link failed: {exc}")
+            self._emit_state()
+        threading.Thread(target=work, daemon=True).start()
+
+    @Slot(str, str)
+    def comfy_set_url(self, path: str, url: str) -> None:
+        def work() -> None:
+            try:
+                res = comfy_models.set_url(path, url)
+                self.notify.emit(res.get("detail", "done"))
+            except Exception as exc:  # noqa: BLE001
+                self.notify.emit(f"URL link failed: {exc}")
+            self._emit_state()
+        threading.Thread(target=work, daemon=True).start()
+
+    @Slot(str)
+    def comfy_check(self, path: str) -> None:
+        def work() -> None:
+            try:
+                st = comfy_models.check_update(path)
+                comfy_models.set_source(path, {"last_check": {
+                    "available": st["available"], "detail": st["detail"],
+                    "latest": st["latest"], "error": st["error"]}})
+                self.notify.emit(f"{Path(path).name}: {st['detail']}")
+            except Exception as exc:  # noqa: BLE001
+                self.notify.emit(f"Check failed: {exc}")
+            self._emit_state()
+        threading.Thread(target=work, daemon=True).start()
+
+    @Slot(str)
+    def comfy_update(self, path: str) -> None:
+        def work() -> None:
+            self.notify.emit(f"Updating {Path(path).name}…")
+            last = [-1]
+
+            def cb(stage: str, frac: float) -> None:
+                pct = int(frac * 100)
+                if pct >= last[0] + 20 or stage in ("starting", "verifying"):
+                    last[0] = pct
+                    self.notify.emit(f"{Path(path).name}: {stage} {pct}%" if stage == "downloading"
+                                     else f"{Path(path).name}: {stage}")
+
+            try:
+                res = comfy_models.update_model(path, progress_cb=cb)
+                self.notify.emit(res.get("reason", "done"))
+                if res.get("updated"):
+                    comfy_models.set_source(path, {"last_check": {"available": False, "detail": "Up to date"}})
+            except Exception as exc:  # noqa: BLE001
+                self.notify.emit(f"Update failed: {exc}")
+            self._emit_state()
+        threading.Thread(target=work, daemon=True).start()
 
     def _refresh_async(self) -> None:
         def work() -> None:

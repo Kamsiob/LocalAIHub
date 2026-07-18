@@ -169,10 +169,12 @@ def resolve_hf(path, repo_or_url: str, revision: str = "main",
         "source": "huggingface",
         "huggingface": {"repo_id": repo, "path": match["path"], "revision": revision},
     }
-    # cache the LFS sha if the tree exposes it
+    # Record the repo's current sha for reference only — NOT as the local sha
+    # (the local file might be an older version; its real sha is computed on
+    # first check_update and cached then).
     lfs = match.get("lfs") or {}
     if lfs.get("oid"):
-        entry["sha256"] = lfs["oid"]
+        entry["hf_repo_oid"] = lfs["oid"]
     set_source(path, entry)
     return {"found": True, "repo": repo, "path": match["path"], "detail": "Linked to Hugging Face"}
 
