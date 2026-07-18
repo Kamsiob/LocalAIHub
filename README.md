@@ -19,6 +19,9 @@ you click. Nothing runs in the background.
 
 - **One toggle per service** — start/stop Ollama, Open WebUI, and ComfyUI as
   `systemd --user` services, with a live status that auto-refreshes.
+- **Live model lists** — the installed-model lists refresh automatically on an
+  interval *and* via a manual **Rescan** button, so a model installed by hand or
+  by another tool shows up without restarting the app.
 - **Ollama model manager** — see installed models with on-disk size, a badge for
   which model is currently **loaded in memory** vs. sitting on disk, and an
   **Update** button that runs a real `ollama pull`.
