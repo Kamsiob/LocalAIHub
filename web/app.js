@@ -148,18 +148,20 @@
     const turnOn = !s.active;
     const card = document.querySelector(`.card[data-svc="${svc}"]`);
     const tog = card && card.querySelector(".toggle");
+    if (backend && !backend.set_service) { toast("Controls arrive in the next step"); return; }
     if (tog) tog.classList.add("busy");
     toast(`${SVC_META[svc].name}: ${turnOn ? "starting…" : "stopping…"}`);
     if (backend && backend.set_service) {
       backend.set_service(svc, turnOn);      // real start/stop (async, status refresh follows)
     } else {
-      // mock
+      // standalone mockup only (no backend at all)
       state.services[svc] = { active: turnOn, serving: turnOn, loaded: turnOn && svc === "ollama" ? "qwen3-coder:30b" : undefined };
       setTimeout(() => { render(); }, 400);
     }
   }
 
   function onUpdate(model) {
+    if (backend && !backend.pull_model) { toast("Update wiring arrives in the next step"); return; }
     toast(`Pulling update for ${model}…`);
     if (backend && backend.pull_model) backend.pull_model(model);
   }
