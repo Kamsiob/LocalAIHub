@@ -1,36 +1,62 @@
-# local-ai-hub
+# Local AI Hub
 
-A personal hub for seeing local AI models you have downloaded using Ollama. Also take Open Web UI into account + Comfy for image generation models. Built initially for Bazzite (desktop) using the AMD Max+ 395, 64gb chip. Trying to make it so it works with others.
+A small, premium desktop control panel for the AI services running locally on
+your machine — [Ollama](https://ollama.com), [Open WebUI](https://openwebui.com),
+and [ComfyUI](https://github.com/comfyanonymous/ComfyUI). See the models you've
+downloaded, start and stop each service, watch live status, and manage your
+Ollama models — all from one place.
+
+Built initially for **Bazzite** (desktop) on the **AMD Ryzen AI Max+ 395** (64 GB,
+"Strix Halo") with its Radeon 8060S iGPU — but written to work for others too.
+
+Everything stays local. **No accounts, no telemetry, no analytics, nothing
+phones home.** The only outbound actions are the three "browse models" buttons,
+which open a normal browser tab.
+
+## Features
+
+- **One toggle per service** — start/stop Ollama, Open WebUI, and ComfyUI as
+  `systemd --user` services, with a live status that auto-refreshes.
+- **Ollama model manager** — see installed models with on-disk size, a badge for
+  which model is currently **loaded in memory** vs. sitting on disk, and an
+  **Update** button that runs a real `ollama pull`.
+- **Light & dark themes** — a polished pill toggle; your choice persists between
+  launches.
+- **Browse links** — quick jumps to the Ollama Library, Hugging Face, and Civitai.
+
+## Architecture
+
+- **UI** — a local web front-end (`web/`) rendered in a `QWebEngineView`
+  (PySide6 + QtWebEngine), wired to Python over `QWebChannel`.
+- **Backend** — `hub/services/` controls each service via `systemctl --user`
+  plus HTTP health probes; the Ollama module talks to the local REST API on
+  `127.0.0.1:11434` (stdlib only).
+- **Services** — systemd user units live in `systemd/` (reference copies).
+- **Design source of truth** — `design/reference-mockup.html`.
 
 ## Requirements
 
+- Linux with a `systemd --user` session (developed on Bazzite / Fedora Atomic)
 - Python 3.10+
-- [git](https://git-scm.com/)
+- Ollama, Open WebUI, and ComfyUI installed as `systemd --user` units
+  (see `docs/phase0-audit.md` for how this repo's environment was set up)
 
-## Setup
+On other machines the service **unit names** and **ports** may differ; they're
+defined in `hub/services/*.py` (`unit=` and `health_url=`) and the `systemd/`
+reference units, so adapting to a different setup is a small, contained change.
+
+## Run
 
 ```bash
-# Clone
-git clone https://github.com/Kamsiob/local-ai-hub.git
-cd local-ai-hub
-
-# Create and activate a virtual environment
 python3 -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
-
-# Install dependencies (once a requirements file exists)
+source .venv/bin/activate
 pip install -r requirements.txt
+python app.py
 ```
 
-## Project layout
+## Free and open source
 
-```
-local-ai-hub/
-├── README.md
-├── .gitignore
-└── .claude/            # Claude Code config (settings.local.json is gitignored)
-```
-
-## License
-
-No license specified yet — all rights reserved by default.
+Local AI Hub is **free and open source software**. You are welcome to use it,
+fork it, modify it, and redistribute it — commercially or not. It is released
+under the [MIT License](LICENSE); the only condition is that the copyright and
+license notice travel with copies. No accounts, no strings, nothing to sign.
