@@ -1,0 +1,3 @@
+# local-ai-hub runtime dependencies.
+# Everything else (service control, model management, HTTP) uses the stdlib.
+PySide6==6.11.1

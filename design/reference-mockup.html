@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<!--
+  local-ai-hub — visual reference mockup (the design source of truth).
+  Static: reuses the app's shared stylesheet and front-end script, which falls
+  back to sample data when there is no backend bridge. What you see here is
+  exactly what the app renders, minus live data.
+-->
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Local AI Hub — design reference</title>
+  <link rel="stylesheet" href="../web/styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-mark" id="brandMark"></div>
+        <div>
+          <div class="brand-title">Local AI Hub</div>
+          <div class="brand-sub">Everything runs on your machine</div>
+        </div>
+      </div>
+      <button class="theme-toggle" id="themeToggle" title="Toggle light / dark" aria-label="Toggle theme">
+        <span id="sunIcon"></span>
+        <span id="moonIcon"></span>
+        <span class="knob"></span>
+      </button>
+    </header>
+
+    <main class="cards" id="cards"></main>
+
+    <section class="browse">
+      <div class="browse-head">Browse &amp; download models</div>
+      <div class="browse-row">
+        <a class="browse-link" data-url="https://ollama.com/library" data-icon="library">Ollama Library</a>
+        <a class="browse-link" data-url="https://huggingface.co/models" data-icon="hugging">Hugging Face</a>
+        <a class="browse-link" data-url="https://civitai.com" data-icon="civitai">Civitai</a>
+      </div>
+    </section>
+
+    <div class="footer-note">Local-only · No accounts · No telemetry · Nothing phones home</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="../web/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Local AI Hub</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-mark" id="brandMark"></div>
+        <div>
+          <div class="brand-title">Local AI Hub</div>
+          <div class="brand-sub">Everything runs on your machine</div>
+        </div>
+      </div>
+      <button class="theme-toggle" id="themeToggle" title="Toggle light / dark" aria-label="Toggle theme">
+        <span id="sunIcon"></span>
+        <span id="moonIcon"></span>
+        <span class="knob"></span>
+      </button>
+    </header>
+
+    <main class="cards" id="cards"></main>
+
+    <section class="browse">
+      <div class="browse-head">Browse &amp; download models</div>
+      <div class="browse-row">
+        <a class="browse-link" data-url="https://ollama.com/library" data-icon="library">Ollama Library</a>
+        <a class="browse-link" data-url="https://huggingface.co/models" data-icon="hugging">Hugging Face</a>
+        <a class="browse-link" data-url="https://civitai.com" data-icon="civitai">Civitai</a>
+      </div>
+    </section>
+
+    <div class="footer-note">Local-only · No accounts · No telemetry · Nothing phones home</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
