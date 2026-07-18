@@ -1,81 +1,61 @@
-# Local AI Hub
+<h1 align="center">Local AI Hub</h1>
 
-A small, premium desktop control panel for the AI services running locally on
-your machine — [Ollama](https://ollama.com), [Open WebUI](https://openwebui.com),
-and [ComfyUI](https://github.com/comfyanonymous/ComfyUI). See the models you've
-downloaded, start and stop each service, watch live status, and manage your
-Ollama models — all from one place.
+<p align="center">
+  A premium desktop control panel for the AI services running <b>locally</b> on your machine —
+  <a href="https://ollama.com">Ollama</a>, <a href="https://openwebui.com">Open&nbsp;WebUI</a>,
+  and <a href="https://github.com/comfyanonymous/ComfyUI">ComfyUI</a>.
+  Start/stop each service, watch live status, and manage models — all from one place.
+</p>
 
-Built initially for **Bazzite** (desktop) on the **AMD Ryzen AI Max+ 395** (64 GB,
-"Strix Halo") with its Radeon 8060S iGPU — but written to work for others too.
+<p align="center">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
+  <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-blue">
+  <img alt="Platform: Linux" src="https://img.shields.io/badge/platform-Linux-lightgrey">
+  <img alt="Telemetry: none" src="https://img.shields.io/badge/telemetry-none-brightgreen">
+</p>
 
-Everything stays local. **No accounts, no telemetry, no analytics, nothing
-phones home.** The only outbound actions are the three "browse models" buttons
-and **model updates** — checking or downloading a model update contacts only
-that model's own host (Hugging Face / Civitai / a URL you gave), and only when
-you click. Nothing runs in the background.
+<p align="center">
+  <img src="assets/screenshot-dark.png" alt="Local AI Hub — dark theme" width="380">
+  &nbsp;
+  <img src="assets/screenshot-light.png" alt="Local AI Hub — light theme" width="380">
+</p>
 
-## Features
+> **Everything stays local. No accounts, no telemetry, no analytics, nothing phones home.**
+> The only outbound actions are the "browse models" links and model updates — and updates
+> only contact that model's own host, only when you click.
 
-- **One toggle per service** — start/stop Ollama, Open WebUI, and ComfyUI as
-  `systemd --user` services, with a live status that auto-refreshes.
-- **Live model lists** — the installed-model lists refresh automatically on an
-  interval *and* via a manual **Rescan** button, so a model installed by hand or
-  by another tool shows up without restarting the app.
-- **Ollama model manager** — see installed models with on-disk size, a badge for
-  which model is currently **loaded in memory** vs. sitting on disk, and an
-  **Update** button that runs a real `ollama pull`.
-- **ComfyUI model manager & updates** — lists whatever's in your ComfyUI model
-  folders (diffusion models, checkpoints, text encoders, VAE, LoRAs), grouped and
-  tagged by format. Because ComfyUI files carry no source of their own, you set
-  each model's source once — **auto-detect on Civitai** (by file hash), a
-  **Hugging Face repo**, or a **direct URL** — and then **Update** checks that
-  source for a newer version and downloads it (verified by size + SHA-256, then
-  atomically replaced). Provenance is stored locally in
-  `~/.config/local-ai-hub/comfy_models.json`. A model whose source can't be
-  determined still lists normally, shown as **“no update source.”**
-- **Install new ComfyUI models** — paste a **Hugging Face**, **Civitai**, or
-  **direct** link; the app downloads it, verifies it (size + SHA-256 where
-  available), and files it in the correct folder based on file type / source
-  metadata — and **asks you** to pick the folder when it can't tell. The
-  installed model's source is recorded, so future updates are one click.
-  Installing a **`.gguf`** model when the `ComfyUI-GGUF` custom node is missing
-  still downloads the file but shows a plain warning that it won't load until you
-  add that node — flagged up front rather than failing silently later.
-- **Crash-aware** — if a service fails to start or dies while running (relevant
-  for ComfyUI, which has a known GPU crash history on some hardware), the app
-  shows it in red as **“Stopped unexpectedly”** with a **View log** button
-  (last lines of the unit's journal) — not a silent flip to gray.
-- **Light & dark themes** — a polished pill toggle; your choice persists between
-  launches.
-- **Open in browser** — running web UIs (Open WebUI, ComfyUI) get an **Open**
-  button. Local links always use the literal `127.0.0.1:<port>` — never the word
-  `localhost`, which some browsers mishandle for plain local servers and silently
-  fail to load. This is a standing rule for every local link the app generates.
-- **Browse links** — quick jumps to the Ollama Library, Hugging Face, and Civitai.
+---
 
-## Architecture
+## ⚙️ Tested on
 
-- **UI** — a local web front-end (`web/`) rendered in a `QWebEngineView`
-  (PySide6 + QtWebEngine), wired to Python over `QWebChannel`.
-- **Backend** — `hub/services/` controls each service via `systemctl --user`
-  plus HTTP health probes; the Ollama module talks to the local REST API on
-  `127.0.0.1:11434` (stdlib only).
-- **Services** — systemd user units live in `systemd/` (reference copies).
-- **Design source of truth** — `design/reference-mockup.html`.
+This is built and proven on one specific configuration:
 
-## Requirements
+- **Distro:** Bazzite (Fedora Atomic base, KDE)
+- **Hardware:** AMD Ryzen AI MAX+ 395 "Strix Halo", Radeon 8060S iGPU (**gfx1151**)
+- **Services:** Ollama · Open WebUI · ComfyUI
 
-- Linux with a `systemd --user` session (developed on Bazzite / Fedora Atomic)
-- Python 3.10+
-- Ollama, Open WebUI, and ComfyUI installed as `systemd --user` units
-  (see `docs/phase0-audit.md` for how this repo's environment was set up)
+Other distros, GPUs, or AI tools **aren't supported yet** — not a promise they won't be,
+just an honest label. The app's built-in **Setup Check** detects whether your machine
+matches and skips the checks plainly if it doesn't.
 
-On other machines the service **unit names** and **ports** may differ; they're
-defined in `hub/services/*.py` (`unit=` and `health_url=`) and the `systemd/`
-reference units, so adapting to a different setup is a small, contained change.
+## 🚀 New here? Start with the guide
 
-## Run
+**→ [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** — a from-scratch setup for the same
+Bazzite + Strix Halo hardware, with two tracks: one for people using an AI assistant, and a
+full manual walkthrough (every command verified against a working machine).
+
+## ✨ Features
+
+- **One toggle per service** — start/stop Ollama, Open WebUI, ComfyUI (systemd `--user`), live status.
+- **Open in browser** — one click to each running web UI, always via `127.0.0.1` (never `localhost`).
+- **Ollama model manager** — installed models with size, an **in-memory vs on-disk** badge, and a real `ollama pull` **Update**.
+- **ComfyUI model manager** — lists what's in your model folders by type; **install** new models from a Hugging Face / Civitai / direct link (download → verify → filed in the right folder); per-model **Update** once a source is set.
+- **Setup Check** — one panel that verifies the iGPU flags, the Open WebUI Quadlet, the gfx1151 ROCm build, and the GGUF node — with safe one-click fixes.
+- **Crash-aware** — a service that dies shows **"Stopped unexpectedly"** with a **View log** button, not a silent gray.
+- **Live rescan** — auto + manual, so hand-added models appear without a restart.
+- **Light & dark** — polished, and your choice persists.
+
+## 🖥️ Run it
 
 ```bash
 python3 -m venv .venv
@@ -84,23 +64,28 @@ pip install -r requirements.txt
 python app.py
 ```
 
-### Desktop launcher (optional)
-
-To add Local AI Hub to your application menu with its own icon (and make it
-pinnable to the taskbar):
+**Add it to your app launcher** (icon + pinnable, no terminal):
 
 ```bash
 bash scripts/install-desktop.sh
 ```
 
-This renders the app icon (`assets/local-ai-hub.svg`) into the standard PNG
-sizes under `~/.local/share/icons/hicolor`, and writes
-`~/.local/share/applications/local-ai-hub.desktop` that launches the app through
-the venv Python — no terminal, no manual activation. Double-clicking just works.
+This renders the app icon into `~/.local/share/icons` and installs a `.desktop`
+entry that runs the app through the venv — double-clicking just works.
 
-## Free and open source
+## 🏗️ Architecture
 
-Local AI Hub is **free and open source software**. You are welcome to use it,
-fork it, modify it, and redistribute it — commercially or not. It is released
-under the [MIT License](LICENSE); the only condition is that the copyright and
-license notice travel with copies. No accounts, no strings, nothing to sign.
+- **UI** — a local web front-end (`web/`) in a `QWebEngineView` (PySide6 + QtWebEngine), wired to Python over `QWebChannel`.
+- **Backend** — `hub/services/` controls each service via `systemctl --user` + HTTP probes; Ollama uses its REST API, ComfyUI model provenance/updates live in `hub/services/comfy_models.py`. Stdlib only.
+- **Adapting to another machine** — service unit names and ports are in `hub/services/*.py` (`unit=` / `health_url=`).
+
+## 📄 Free and open source
+
+Local AI Hub is **free and open source** under the [MIT License](LICENSE) — use it, fork it,
+modify it, redistribute it. The only condition is keeping the copyright notice with copies.
+
+---
+
+<p align="center">
+  Made by <b>Kamsiob</b> · <a href="https://www.youtube.com/@Kamsiob">Kamsiob&nbsp;on&nbsp;Linux (@Kamsiob) on YouTube</a>
+</p>
