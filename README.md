@@ -10,8 +10,10 @@ Built initially for **Bazzite** (desktop) on the **AMD Ryzen AI Max+ 395** (64 G
 "Strix Halo") with its Radeon 8060S iGPU — but written to work for others too.
 
 Everything stays local. **No accounts, no telemetry, no analytics, nothing
-phones home.** The only outbound actions are the three "browse models" buttons,
-which open a normal browser tab.
+phones home.** The only outbound actions are the three "browse models" buttons
+and **model updates** — checking or downloading a model update contacts only
+that model's own host (Hugging Face / Civitai / a URL you gave), and only when
+you click. Nothing runs in the background.
 
 ## Features
 
@@ -20,6 +22,14 @@ which open a normal browser tab.
 - **Ollama model manager** — see installed models with on-disk size, a badge for
   which model is currently **loaded in memory** vs. sitting on disk, and an
   **Update** button that runs a real `ollama pull`.
+- **ComfyUI model manager & updates** — lists whatever's in your ComfyUI model
+  folders (diffusion models, checkpoints, text encoders, VAE, LoRAs), grouped and
+  tagged by format. Because ComfyUI files carry no source of their own, you set
+  each model's source once — **auto-detect on Civitai** (by file hash), a
+  **Hugging Face repo**, or a **direct URL** — and then **Update** checks that
+  source for a newer version and downloads it (verified by size + SHA-256, then
+  atomically replaced). Provenance is stored locally in
+  `~/.config/local-ai-hub/comfy_models.json`.
 - **Light & dark themes** — a polished pill toggle; your choice persists between
   launches.
 - **Browse links** — quick jumps to the Ollama Library, Hugging Face, and Civitai.
