@@ -109,10 +109,21 @@
   // ---- theme --------------------------------------------------------------
   function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
+    const sun = document.getElementById("sunIcon");
+    const moon = document.getElementById("moonIcon");
+    if (sun && moon) {
+      sun.classList.toggle("active", theme === "light");
+      moon.classList.toggle("active", theme === "dark");
+    }
   }
   function initTheme() {
-    const saved = localStorage.getItem("theme") || "dark";
-    applyTheme(saved);
+    // Saved preference wins; otherwise follow the OS setting on first run.
+    let theme = localStorage.getItem("theme");
+    if (!theme) {
+      const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+      theme = prefersLight ? "light" : "dark";
+    }
+    applyTheme(theme);
   }
   function toggleTheme() {
     const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
