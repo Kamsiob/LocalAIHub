@@ -11,6 +11,7 @@ import json
 import os
 import sys
 import threading
+import time
 from pathlib import Path
 
 os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu")
@@ -39,6 +40,11 @@ class Backend(QObject):
         self.ollama = OllamaService()
         self.openwebui = OpenWebUIService()
         self.comfyui = ComfyUIService()
+        self._services = {
+            "ollama": self.ollama,
+            "openwebui": self.openwebui,
+            "comfyui": self.comfyui,
+        }
 
     # --- state collection ----------------------------------------------------
     def _collect(self) -> dict:
@@ -79,6 +85,28 @@ class Backend(QObject):
     @Slot()
     def request_refresh(self) -> None:
         self._refresh_async()
+
+    @Slot(str, bool)
+    def set_service(self, key: str, turn_on: bool) -> None:
+        """Start/stop a real service, then stream status updates as it settles."""
+        svc = self._services.get(key)
+        if svc is None:
+            return
+
+        def work() -> None:
+            try:
+                ok = svc.start() if turn_on else svc.stop()
+                verb = "started" if turn_on else "stopped"
+                self.notify.emit(f"{svc.display_name} {verb}" if ok
+                                 else f"{svc.display_name} failed to {verb[:-4] or 'change'}")
+            except Exception as exc:  # noqa: BLE001
+                self.notify.emit(f"{svc.display_name}: {exc}")
+            # Emit a few refreshes so the UI reflects starting -> running/stopped.
+            for _ in range(10):
+                self.state_changed.emit(json.dumps(self._collect()))
+                time.sleep(1)
+
+        threading.Thread(target=work, daemon=True).start()
 
     @Slot(str)
     def open_url(self, url: str) -> None:
