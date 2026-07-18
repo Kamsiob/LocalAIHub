@@ -16,7 +16,7 @@ from pathlib import Path
 
 os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu")
 
-from PySide6.QtCore import QObject, QUrl, Signal, Slot  # noqa: E402
+from PySide6.QtCore import QObject, QTimer, QUrl, Signal, Slot  # noqa: E402
 from PySide6.QtGui import QDesktopServices  # noqa: E402
 from PySide6.QtWebChannel import QWebChannel  # noqa: E402
 from PySide6.QtWebEngineWidgets import QWebEngineView  # noqa: E402
@@ -127,6 +127,13 @@ class MainWindow(QMainWindow):
 
         self.view.load(QUrl.fromLocalFile(str(WEB / "index.html")))
         self.setCentralWidget(self.view)
+
+        # Keep the UI in sync with reality (service crashes, models loading, etc.)
+        # even when the user isn't clicking anything.
+        self.refresh_timer = QTimer(self)
+        self.refresh_timer.setInterval(5000)
+        self.refresh_timer.timeout.connect(self.backend.request_refresh)
+        self.refresh_timer.start()
 
 
 def main() -> int:
