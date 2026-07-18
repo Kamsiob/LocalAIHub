@@ -109,6 +109,30 @@ class Backend(QObject):
         threading.Thread(target=work, daemon=True).start()
 
     @Slot(str)
+    def pull_model(self, name: str) -> None:
+        """Pull/update a model via the real Ollama API, reporting progress."""
+        def work() -> None:
+            last = [-1]
+
+            def cb(status: str, frac: float) -> None:
+                pct = int(frac * 100)
+                # Throttle: only surface at ~20% steps or on named phases.
+                if pct >= last[0] + 20 or status in ("pulling manifest", "verifying sha256 digest", "success"):
+                    last[0] = pct
+                    msg = f"{name}: {status}" + (f" {pct}%" if 0 < pct < 100 and "pulling" in status else "")
+                    self.notify.emit(msg)
+
+            try:
+                self.notify.emit(f"Updating {name}…")
+                self.ollama.pull_model(name, progress_cb=cb)
+                self.notify.emit(f"{name} is up to date")
+            except Exception as exc:  # noqa: BLE001
+                self.notify.emit(f"Update failed for {name}: {exc}")
+            self.state_changed.emit(json.dumps(self._collect()))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    @Slot(str)
     def open_url(self, url: str) -> None:
         QDesktopServices.openUrl(QUrl(url))
 
