@@ -333,6 +333,9 @@ class MainWindow(QMainWindow):
 def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("Local AI Hub")
+    # Associates the window with local-ai-hub.desktop so KDE/Wayland groups it
+    # under the launcher icon and it can be pinned to the taskbar.
+    app.setDesktopFileName("local-ai-hub")
     win = MainWindow()
     win.show()
     return app.exec()

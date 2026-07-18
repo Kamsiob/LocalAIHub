@@ -84,6 +84,20 @@ pip install -r requirements.txt
 python app.py
 ```
 
+### Desktop launcher (optional)
+
+To add Local AI Hub to your application menu with its own icon (and make it
+pinnable to the taskbar):
+
+```bash
+bash scripts/install-desktop.sh
+```
+
+This renders the app icon (`assets/local-ai-hub.svg`) into the standard PNG
+sizes under `~/.local/share/icons/hicolor`, and writes
+`~/.local/share/applications/local-ai-hub.desktop` that launches the app through
+the venv Python — no terminal, no manual activation. Double-clicking just works.
+
 ## Free and open source
 
 Local AI Hub is **free and open source software**. You are welcome to use it,

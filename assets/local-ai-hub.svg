@@ -1,0 +1,22 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Local AI Hub app icon — matches the in-app brand mark:
+       rounded square, violet->blue gradient, white sparkle glyph. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7c5cff"/>
+      <stop offset="1" stop-color="#2f9bff"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.24"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="40" y="40" width="432" height="432" rx="116" fill="url(#bg)"/>
+  <rect x="40" y="40" width="432" height="432" rx="116" fill="url(#sheen)"/>
+  <!-- sparkle: the app's I.spark art (24-unit), scaled ~10x and centered -->
+  <g transform="translate(256 256) scale(10) translate(-12 -12)" fill="#ffffff">
+    <path d="M12 3l1.8 4.9L18.7 9l-4.9 1.8L12 15.7 10.2 10.8 5.3 9l4.9-1.1L12 3z"/>
+    <circle cx="18.5" cy="17.5" r="1.6"/>
+    <circle cx="6" cy="16" r="1.1"/>
+  </g>
+</svg>
