@@ -28,9 +28,14 @@
 
   const SVC_META = {
     ollama:    { name: "Ollama",     sub: "Local LLM runtime · :11434", hasModels: true },
-    openwebui: { name: "Open WebUI", sub: "Chat front-end · :3000",      hasModels: false },
-    comfyui:   { name: "ComfyUI",    sub: "Image generation · :8188",    hasModels: true },
+    openwebui: { name: "Open WebUI", sub: "Chat front-end · :3000",      hasModels: false, webPort: 3000 },
+    comfyui:   { name: "ComfyUI",    sub: "Image generation · :8188",    hasModels: true,  webPort: 8188 },
   };
+
+  // STANDING RULE: links to anything running locally use the literal loopback
+  // address 127.0.0.1 with the port — never the word "localhost", which some
+  // browsers mishandle for plain local servers and silently fail to load.
+  function localServiceUrl(port) { return "http://127.0.0.1:" + port; }
 
   // ---- sample data (illustrative only; used when there is no backend, e.g.
   // the standalone design mockup). Deliberately generic public model names —
@@ -87,6 +92,7 @@
             <div class="svc-status"><span class="dot"></span>${st.txt}</div>
           </div>
           <div class="svc-right">
+            ${(meta.webPort && s.serving) ? `<button class="btn-open" data-act="open" data-port="${meta.webPort}" title="Open http://127.0.0.1:${meta.webPort}">Open ${I.external2}</button>` : ""}
             ${meta.hasModels ? `<div class="chevron" data-act="expand">${I.chevron}</div>` : ""}
             <div class="toggle" data-act="toggle" role="switch" aria-checked="${on}"><span class="knob"></span></div>
           </div>
@@ -350,6 +356,7 @@
       else if (act === "csource") openSourceModal(el.dataset.path, el.dataset.name);
       else if (act === "ccheck") onComfyCheck(el.dataset.path);
       else if (act === "cupdate") onComfyUpdate(el.dataset.path);
+      else if (act === "open") openUrl(localServiceUrl(el.dataset.port));
     });
 
     document.querySelectorAll(".browse-link").forEach(a => {

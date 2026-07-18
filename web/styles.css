@@ -181,6 +181,17 @@ body {
 .chevron svg { width: 16px; height: 16px; }
 .card.expanded .chevron { transform: rotate(180deg); }
 
+/* open-in-browser button */
+.btn-open {
+  font-size: 12.5px; font-weight: 600; padding: 6px 11px; border-radius: 10px;
+  border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px; flex: none;
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease), transform .1s var(--ease);
+}
+.btn-open svg { width: 13px; height: 13px; }
+.btn-open:hover { background: var(--surface-2); border-color: var(--text-faint); }
+.btn-open:active { transform: scale(.96); }
+
 /* pill toggle */
 .toggle {
   position: relative; width: 52px; height: 30px; flex: none;

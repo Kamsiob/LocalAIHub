@@ -36,6 +36,10 @@ you click. Nothing runs in the background.
   determined still lists normally, shown as **“no update source.”**
 - **Light & dark themes** — a polished pill toggle; your choice persists between
   launches.
+- **Open in browser** — running web UIs (Open WebUI, ComfyUI) get an **Open**
+  button. Local links always use the literal `127.0.0.1:<port>` — never the word
+  `localhost`, which some browsers mishandle for plain local servers and silently
+  fail to load. This is a standing rule for every local link the app generates.
 - **Browse links** — quick jumps to the Ollama Library, Hugging Face, and Civitai.
 
 ## Architecture
