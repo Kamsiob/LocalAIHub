@@ -25,29 +25,39 @@
   const SVC_META = {
     ollama:    { name: "Ollama",     sub: "Local LLM runtime · :11434", hasModels: true },
     openwebui: { name: "Open WebUI", sub: "Chat front-end · :3000",      hasModels: false },
-    comfyui:   { name: "ComfyUI",    sub: "Image generation · :8188",    hasModels: false },
+    comfyui:   { name: "ComfyUI",    sub: "Image generation · :8188",    hasModels: true },
   };
 
-  // ---- sample data (used only without a backend bridge) -------------------
+  // ---- sample data (illustrative only; used when there is no backend, e.g.
+  // the standalone design mockup). Deliberately generic public model names —
+  // the app never assumes anyone's actual models; live data comes from the API. -
   const SAMPLE = {
-    ollama:    { active: true,  serving: true,  loaded: "qwen3-coder:30b" },
+    ollama:    { active: true,  serving: true,  loaded: "llama3.2:3b" },
     openwebui: { active: true,  serving: true },
-    comfyui:   { active: false, serving: false },
+    comfyui:   { active: true,  serving: true,  generating: false },
   };
   const SAMPLE_MODELS = [
-    { name: "qwen3-coder:30b", size_human: "17.3 GB", loaded: true,  vram_human: "18 GB" },
-    { name: "gemma4:31b",      size_human: "18.5 GB", loaded: false, vram_human: "" },
-    { name: "gemma4:26b",      size_human: "16.8 GB", loaded: false, vram_human: "" },
-    { name: "nomic-embed-text:latest", size_human: "262 MB", loaded: false, vram_human: "" },
+    { name: "llama3.2:3b", size_human: "2.0 GB", loaded: true,  vram_human: "3.4 GB" },
+    { name: "mistral:7b",  size_human: "4.1 GB", loaded: false, vram_human: "" },
+    { name: "phi3:mini",   size_human: "2.2 GB", loaded: false, vram_human: "" },
+    { name: "gemma2:2b",   size_human: "1.6 GB", loaded: false, vram_human: "" },
+  ];
+  const SAMPLE_COMFY = [
+    { category_label: "Diffusion models", name: "flux1-dev-Q8_0.gguf",       size_human: "12.5 GB", format: "GGUF" },
+    { category_label: "Checkpoints",      name: "sd_xl_base_1.0.safetensors", size_human: "6.5 GB", format: "safetensors" },
+    { category_label: "Text encoders",    name: "clip_l.safetensors",         size_human: "246 MB", format: "safetensors" },
+    { category_label: "VAE",              name: "sdxl_vae.safetensors",       size_human: "320 MB", format: "safetensors" },
+    { category_label: "LoRAs",            name: "add-detail-xl.safetensors",  size_human: "144 MB", format: "safetensors" },
   ];
 
   // ---- backend bridge -----------------------------------------------------
   let backend = null;        // set when QWebChannel connects
-  const state = { services: {}, models: [], expanded: { ollama: false } };
+  const state = { services: {}, models: [], comfyModels: [], expanded: { ollama: false, comfyui: false } };
 
   function statusText(svc, s) {
     if (!s || !s.active) return { txt: "Stopped", cls: "" };
     if (!s.serving) return { txt: "Starting…", cls: "is-starting" };
+    if (svc === "comfyui" && s.generating) return { txt: "Generating…", cls: "is-on is-starting" };
     if (svc === "ollama" && s.loaded) return { txt: `Running · ${s.loaded} in memory`, cls: "is-on" };
     return { txt: "Running", cls: "is-on" };
   }
@@ -88,14 +98,21 @@
     }
   }
 
+  function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
   function modelsMarkup(svc) {
+    return svc === "comfyui" ? comfyModelsMarkup() : ollamaModelsMarkup();
+  }
+
+  // Ollama: installed models with in-memory vs on-disk state + Update.
+  function ollamaModelsMarkup() {
     const models = state.models;
     const rows = models.length ? models.map(m => `
       <div class="model">
-        <span class="model-name">${m.name}</span>
-        <span class="size">${m.size_human || ""}</span>
+        <span class="model-name">${esc(m.name)}</span>
+        <span class="size">${esc(m.size_human || "")}</span>
         <span class="badge ${m.loaded ? "loaded" : ""}"><span class="b-dot"></span>${m.loaded ? "In memory" : "On disk"}</span>
-        <button class="btn-sm" data-act="update" data-model="${m.name}">Update</button>
+        <button class="btn-sm" data-act="update" data-model="${esc(m.name)}">Update</button>
       </div>`).join("") : `<div class="model"><span class="model-name" style="color:var(--text-faint)">No models installed</span></div>`;
     return `
       <div class="models">
@@ -104,6 +121,34 @@
           ${rows}
         </div>
       </div>`;
+  }
+
+  // ComfyUI: whatever files are on disk, grouped by folder, with a format tag.
+  // No in-memory/idle state (ComfyUI has none) and no Update (no registry).
+  function comfyModelsMarkup() {
+    const models = state.comfyModels || [];
+    if (!models.length) {
+      return `<div class="models"><div class="models-inner">
+        <div class="models-head"><span>Installed models</span><span>0 total</span></div>
+        <div class="model"><span class="model-name" style="color:var(--text-faint)">No model files found under ComfyUI/models</span></div>
+      </div></div>`;
+    }
+    const order = ["Diffusion models", "Checkpoints", "Text encoders", "VAE", "LoRAs"];
+    const groups = {};
+    models.forEach(m => (groups[m.category_label] = groups[m.category_label] || []).push(m));
+    let body = "";
+    order.forEach(label => {
+      const items = groups[label];
+      if (!items || !items.length) return;
+      body += `<div class="models-head"><span>${esc(label)}</span><span>${items.length}</span></div>`;
+      body += items.map(m => `
+        <div class="model">
+          <span class="model-name" title="${esc(m.name)}">${esc(m.name)}</span>
+          <span class="size">${esc(m.size_human || "")}</span>
+          <span class="badge">${esc(m.format || "")}</span>
+        </div>`).join("");
+    });
+    return `<div class="models"><div class="models-inner">${body}</div></div>`;
   }
 
   // ---- theme --------------------------------------------------------------
@@ -155,7 +200,7 @@
       backend.set_service(svc, turnOn);      // real start/stop (async, status refresh follows)
     } else {
       // standalone mockup only (no backend at all)
-      state.services[svc] = { active: turnOn, serving: turnOn, loaded: turnOn && svc === "ollama" ? "qwen3-coder:30b" : undefined };
+      state.services[svc] = { active: turnOn, serving: turnOn, loaded: turnOn && svc === "ollama" ? "llama3.2:3b" : undefined };
       setTimeout(() => { render(); }, 400);
     }
   }
@@ -205,6 +250,7 @@
     // payload: { services: {svc:{active,serving,loaded}}, models: [...] }
     if (payload.services) state.services = payload.services;
     if (payload.models) state.models = payload.models;
+    if (payload.comfyui_models) state.comfyModels = payload.comfyui_models;
     render();
   }
   window.__applyState = applyState;   // backend pushes here
@@ -225,7 +271,9 @@
       // standalone / mockup: use sample data
       state.services = JSON.parse(JSON.stringify(SAMPLE));
       state.models = SAMPLE_MODELS;
+      state.comfyModels = SAMPLE_COMFY;
       state.expanded.ollama = true;
+      state.expanded.comfyui = true;
       render();
     }
   }

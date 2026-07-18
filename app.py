@@ -74,7 +74,18 @@ class Backend(QObject):
             except Exception:
                 models = []
         services["ollama"]["loaded"] = loaded
-        return {"services": services, "models": models}
+
+        # ComfyUI extras: models are a disk scan (shown even when stopped);
+        # "generating" is only meaningful while the service is up and a job runs.
+        services["comfyui"]["generating"] = (
+            self.comfyui.is_generating() if services["comfyui"]["active"] else False
+        )
+        try:
+            comfyui_models = self.comfyui.list_models()
+        except Exception:
+            comfyui_models = []
+
+        return {"services": services, "models": models, "comfyui_models": comfyui_models}
 
     def _refresh_async(self) -> None:
         def work() -> None:

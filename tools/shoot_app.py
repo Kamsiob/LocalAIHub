@@ -27,10 +27,15 @@ win.show()
 
 
 def capture():
+    # Click chevrons one at a time, re-querying each time (each click re-renders
+    # the card list, so a cached NodeList would go stale — same as a real user).
     win.view.page().runJavaScript(
         f"document.documentElement.dataset.theme='{theme}';"
-        f"if(window.__applyState===undefined){{}}", lambda _: None)
-    QTimer.singleShot(1200, lambda: (
+        "(function(){var n=document.querySelectorAll('.chevron').length;"
+        "for(var i=0;i<n;i++){(function(k){setTimeout(function(){"
+        "var c=document.querySelectorAll('.chevron')[k]; if(c) c.click();},k*250);})(i);}})();",
+        lambda _: None)
+    QTimer.singleShot(1600, lambda: (
         win.view.grab().save(out, "PNG"),
         print(f"saved {out}"),
         application.quit(),
