@@ -34,6 +34,11 @@ you click. Nothing runs in the background.
   atomically replaced). Provenance is stored locally in
   `~/.config/local-ai-hub/comfy_models.json`. A model whose source can't be
   determined still lists normally, shown as **“no update source.”**
+- **Install new ComfyUI models** — paste a **Hugging Face**, **Civitai**, or
+  **direct** link; the app downloads it, verifies it (size + SHA-256 where
+  available), and files it in the correct folder based on file type / source
+  metadata — and **asks you** to pick the folder when it can't tell. The
+  installed model's source is recorded, so future updates are one click.
 - **Crash-aware** — if a service fails to start or dies while running (relevant
   for ComfyUI, which has a known GPU crash history on some hardware), the app
   shows it in red as **“Stopped unexpectedly”** with a **View log** button

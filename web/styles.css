@@ -323,6 +323,25 @@ body {
 .btn-sm.danger:hover { background: color-mix(in srgb, var(--err) 12%, transparent);
   border-color: var(--err); }
 
+/* install: topbar button, select, info rows */
+.models-topbar { display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 8px 10px; }
+.models-topbar-label { font-size: 12px; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+.models-topbar .btn-sm { display: inline-flex; align-items: center; gap: 6px; }
+.models-topbar .btn-sm svg { width: 14px; height: 14px; }
+.select {
+  flex: 1 1 auto; background: var(--surface-inset); border: 1px solid var(--border);
+  border-radius: 10px; padding: 9px 12px; color: var(--text); font-size: 13px;
+  outline: none; cursor: pointer;
+}
+.select:focus { border-color: var(--border-strong); }
+.install-info { background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 14px; margin-top: 6px; }
+.ii-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0;
+  font-size: 13px; color: var(--text-muted); }
+.ii-row b { color: var(--text); font-weight: 600; word-break: break-all; text-align: right; }
+
 /* log modal */
 .log-modal { width: min(660px, 94vw); }
 .log-pre {

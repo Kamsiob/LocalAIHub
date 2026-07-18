@@ -139,16 +139,20 @@
   // No in-memory/idle state (ComfyUI has none) and no Update (no registry).
   function comfyModelsMarkup() {
     const models = state.comfyModels || [];
+    const topbar = `<div class="models-topbar">
+      <span class="models-topbar-label">Installed models${models.length ? " · " + models.length : ""}</span>
+      <button class="btn-sm" data-act="cinstall">${I.plus}Install a model</button>
+    </div>`;
     if (!models.length) {
       return `<div class="models"><div class="models-inner">
-        <div class="models-head"><span>Installed models</span><span>0 total</span></div>
-        <div class="model"><span class="model-name" style="color:var(--text-faint)">No model files found under ComfyUI/models</span></div>
+        ${topbar}
+        <div class="model"><span class="model-name" style="color:var(--text-faint)">No model files yet — use “Install a model”, or drop files into ComfyUI/models</span></div>
       </div></div>`;
     }
     const order = ["Diffusion models", "Checkpoints", "Text encoders", "VAE", "LoRAs"];
     const groups = {};
     models.forEach(m => (groups[m.category_label] = groups[m.category_label] || []).push(m));
-    let body = "";
+    let body = topbar;
     order.forEach(label => {
       const items = groups[label];
       if (!items || !items.length) return;
@@ -327,6 +331,79 @@
     modalPath = null;
   }
 
+  const COMFY_FOLDERS = [
+    ["diffusion_models", "Diffusion models"], ["checkpoints", "Checkpoints"],
+    ["text_encoders", "Text encoders"], ["vae", "VAE"], ["loras", "LoRAs"],
+  ];
+  function buildInstallModal() {
+    const bd = document.createElement("div");
+    bd.className = "modal-backdrop";
+    bd.id = "installModal";
+    const opts = COMFY_FOLDERS.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+    bd.innerHTML = `
+      <div class="modal">
+        <h3>Install a ComfyUI model</h3>
+        <div class="sub">Paste a Hugging Face, Civitai, or direct link. The app downloads it, verifies it, and files it in the right folder.</div>
+        <div class="m-row"><input id="inLink" placeholder="https://huggingface.co/…  or  https://civitai.com/models/…" /><button class="btn-sm" id="inAnalyze">Analyze</button></div>
+        <div class="m-hint" id="inMsg"></div>
+        <div id="inDetails" style="display:none">
+          <div class="install-info" id="inInfo"></div>
+          <div class="m-title" style="margin-top:14px">Destination folder</div>
+          <div class="m-row"><select id="inFolder" class="select">${opts}</select></div>
+          <div class="m-hint" id="inFolderHint"></div>
+        </div>
+        <div class="modal-foot" style="gap:10px">
+          <button class="btn-ghost" id="inClose">Cancel</button>
+          <button class="btn-sm accent" id="inGo" style="display:none">Download &amp; install</button>
+        </div>
+      </div>`;
+    document.body.appendChild(bd);
+    const close = () => { bd.classList.remove("show"); };
+    bd.addEventListener("click", e => { if (e.target === bd) close(); });
+    bd.querySelector("#inClose").addEventListener("click", close);
+    bd.querySelector("#inAnalyze").addEventListener("click", () => {
+      const link = bd.querySelector("#inLink").value.trim();
+      const msg = bd.querySelector("#inMsg");
+      if (!link) { msg.textContent = "Paste a link first."; return; }
+      if (!backend || !backend.comfy_analyze_install) { msg.textContent = "Available when running in the app."; return; }
+      msg.textContent = "Analyzing…";
+      bd.querySelector("#inDetails").style.display = "none";
+      bd.querySelector("#inGo").style.display = "none";
+      backend.comfy_analyze_install(link, res => {
+        let r; try { r = JSON.parse(res); } catch (e) { r = { ok: false, error: "bad response" }; }
+        if (!r.ok) { msg.textContent = "Couldn't read that link: " + (r.error || "unknown"); return; }
+        msg.textContent = "";
+        bd.querySelector("#inInfo").innerHTML =
+          `<div class="ii-row"><span>File</span><b>${esc(r.filename)}</b></div>` +
+          `<div class="ii-row"><span>Source</span><b>${esc(r.source)}${r.size_human ? " · " + esc(r.size_human) : ""}</b></div>`;
+        const sel = bd.querySelector("#inFolder");
+        const hint = bd.querySelector("#inFolderHint");
+        if (r.category) {
+          sel.value = r.category;
+          hint.textContent = "Suggested folder (" + r.category_reason + "). Change it if that's wrong.";
+        } else {
+          hint.textContent = "Couldn't determine the folder from the link — please choose one.";
+        }
+        bd.querySelector("#inDetails").style.display = "block";
+        bd.querySelector("#inGo").style.display = "inline-flex";
+      });
+    });
+    bd.querySelector("#inGo").addEventListener("click", () => {
+      const link = bd.querySelector("#inLink").value.trim();
+      const folder = bd.querySelector("#inFolder").value;
+      if (backend && backend.comfy_install) { toast("Downloading model…"); backend.comfy_install(link, folder); }
+      close();
+    });
+  }
+  function openInstallModal() {
+    const bd = document.getElementById("installModal");
+    bd.querySelector("#inLink").value = "";
+    bd.querySelector("#inMsg").textContent = "";
+    bd.querySelector("#inDetails").style.display = "none";
+    bd.querySelector("#inGo").style.display = "none";
+    bd.classList.add("show");
+  }
+
   function buildLogModal() {
     const bd = document.createElement("div");
     bd.className = "modal-backdrop";
@@ -370,6 +447,7 @@
   function wire() {
     buildModal();
     buildLogModal();
+    buildInstallModal();
     document.getElementById("brandMark").innerHTML = I.spark;
     document.getElementById("sunIcon").innerHTML = I.sun;
     document.getElementById("moonIcon").innerHTML = I.moon;
@@ -392,6 +470,7 @@
       else if (act === "cupdate") onComfyUpdate(el.dataset.path);
       else if (act === "open") openUrl(localServiceUrl(el.dataset.port));
       else if (act === "clog") openLogModal(el.dataset.svc);
+      else if (act === "cinstall") openInstallModal();
     });
 
     document.querySelectorAll(".browse-link").forEach(a => {

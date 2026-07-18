@@ -269,6 +269,37 @@ class Backend(QObject):
         except Exception as exc:  # noqa: BLE001
             return f"(could not read log: {exc})"
 
+    @Slot(str, result=str)
+    def comfy_analyze_install(self, link: str) -> str:
+        try:
+            return json.dumps(comfy_models.analyze_install(link))
+        except Exception as exc:  # noqa: BLE001
+            return json.dumps({"ok": False, "error": str(exc)})
+
+    @Slot(str, str)
+    def comfy_install(self, link: str, category: str) -> None:
+        def work() -> None:
+            self.notify.emit("Downloading model…")
+            last = [-1]
+
+            def cb(stage: str, frac: float) -> None:
+                pct = int(frac * 100)
+                if pct >= last[0] + 20 or stage in ("starting", "verifying"):
+                    last[0] = pct
+                    self.notify.emit(f"Install: {stage} {pct}%" if stage == "downloading"
+                                     else f"Install: {stage}")
+
+            try:
+                res = comfy_models.install_model(link, category, progress_cb=cb)
+                if res.get("ok"):
+                    self.notify.emit(f"Installed {res['filename']} → {res['category']}")
+                else:
+                    self.notify.emit(f"Install failed: {res.get('error')}")
+            except Exception as exc:  # noqa: BLE001
+                self.notify.emit(f"Install failed: {exc}")
+            self._emit_state()
+        threading.Thread(target=work, daemon=True).start()
+
     @Slot(str)
     def open_url(self, url: str) -> None:
         QDesktopServices.openUrl(QUrl(url))

@@ -24,12 +24,14 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from .. import config
+from .comfyui import MODEL_CATEGORIES, MODEL_EXTS, MODELS_DIR, _human_size
 
 MANIFEST_FILE = config.CONFIG_DIR / "comfy_models.json"
 USER_AGENT = "local-ai-hub/1.0 (+https://github.com/Kamsiob/local-ai-hub)"
 
 CIVITAI_BY_HASH = "https://civitai.com/api/v1/model-versions/by-hash/{sha}"
 CIVITAI_MODEL = "https://civitai.com/api/v1/models/{id}"
+CIVITAI_VERSION = "https://civitai.com/api/v1/model-versions/{vid}"
 HF_RESOLVE = "https://huggingface.co/{repo}/resolve/{rev}/{path}"
 HF_TREE = "https://huggingface.co/api/models/{repo}/tree/{rev}?recursive=true"
 
@@ -207,16 +209,23 @@ def _civitai_headers() -> dict:
 
 
 def _hf_remote_sha(repo: str, path_in_repo: str, revision: str):
-    """(sha256, size) of an HF file from the first (non-CDN) response headers."""
+    """(sha256, size) of an HF file from the first (non-CDN) response headers.
+
+    Returns (None, None) if the file doesn't exist (404) or is unreachable — the
+    caller treats that as "not found" rather than trusting a 404 body's length.
+    """
     url = HF_RESOLVE.format(repo=repo, rev=revision, path=urllib.parse.quote(path_in_repo))
     try:
         with _request(url, "HEAD", follow=False) as r:
-            headers = r.headers
+            status, headers = r.status, r.headers
     except urllib.error.HTTPError as e:
-        headers = e.headers  # the 302 carries X-Linked-Etag / X-Linked-Size
-    sha = headers.get("X-Linked-Etag") or headers.get("ETag") or ""
-    sha = sha.strip('"').lower()
-    size = headers.get("X-Linked-Size") or headers.get("Content-Length")
+        status, headers = e.code, e.headers  # a 302 carries X-Linked-Etag / X-Linked-Size
+    if status not in (200, 301, 302, 303, 307, 308):
+        return (None, None)  # 404 etc. — do NOT read the error body's Content-Length
+    sha = (headers.get("X-Linked-Etag") or (headers.get("ETag") if status == 200 else "") or "").strip('"').lower()
+    # X-Linked-Size is authoritative for LFS files; Content-Length is only the real
+    # file size on a direct 200 (on a 302 it's the redirect page, not the model).
+    size = headers.get("X-Linked-Size") or (headers.get("Content-Length") if status == 200 else None)
     return (sha if len(sha) == 64 else None, int(size) if size else None)
 
 
@@ -349,3 +358,199 @@ def update_model(path, progress_cb: Optional[Callable[[str, float], None]] = Non
         updates["url"] = {**(get_source(path) or {}).get("url", {})}
     set_source(path, updates or {"sha256": st.get("expected_sha")})
     return {"updated": True, "reason": f"Updated to {st.get('latest') or 'latest'}", "sha256": new_sha}
+
+
+# --------------------------------------------------------------------------- #
+# install a NEW model (download -> verify -> place in the right folder)
+# --------------------------------------------------------------------------- #
+VALID_CATEGORIES = {c[0] for c in MODEL_CATEGORIES}
+
+# Civitai model type -> one of our five ComfyUI folders (None = must ask).
+_CIVITAI_TYPE_TO_CAT = {
+    "Checkpoint": "checkpoints",
+    "LORA": "loras",
+    "LoCon": "loras",
+    "DoRA": "loras",
+    "VAE": "vae",
+    # TextualInversion (embeddings), Controlnet, Upscaler, etc. -> not one of the
+    # five; leave None so the user is asked rather than guessing wrong.
+}
+
+
+def _category_from_path(p: str):
+    """Best-effort folder from a repo path / filename; None if unsure."""
+    s = (p or "").lower().replace("\\", "/")
+    for seg in s.split("/"):
+        if seg in VALID_CATEGORIES:
+            return seg
+    if any(k in s for k in ("text_encoder", "clip_", "/clip", "t5xxl", "umt5")):
+        return "text_encoders"
+    if "vae" in s:
+        return "vae"
+    if "lora" in s:
+        return "loras"
+    if "checkpoint" in s:
+        return "checkpoints"
+    if any(k in s for k in ("unet", "diffusion_model", "/diffusion")):
+        return "diffusion_models"
+    return None
+
+
+def _parse_hf_url(url: str):
+    """(repo, revision, in-repo path) from a huggingface.co blob/resolve URL."""
+    parts = urllib.parse.urlparse(url).path.strip("/").split("/")
+    # <org>/<name>/(blob|resolve)/<rev>/<path...>
+    if len(parts) >= 5 and parts[2] in ("blob", "resolve"):
+        repo = f"{parts[0]}/{parts[1]}"
+        rev = parts[3]
+        path = "/".join(parts[4:])
+        return repo, rev, urllib.parse.unquote(path)
+    return None, None, None
+
+
+def analyze_install(link: str) -> dict:
+    """Inspect a link and return everything needed to install it (no download).
+
+    Returns {ok, source, filename, size, size_human, download_url, expected_sha,
+    expected_size, category, category_reason, provenance, error}. category is None
+    when it can't be determined — the caller must then ask the user.
+    """
+    out = {"ok": False, "source": None, "filename": "", "size_human": "",
+           "download_url": None, "expected_sha": None, "expected_size": None,
+           "category": None, "category_reason": "", "provenance": {}, "error": None}
+    link = (link or "").strip()
+    if not link.startswith("http"):
+        out["error"] = "Please paste a full http(s) link."
+        return out
+    host = urllib.parse.urlparse(link).netloc.lower()
+    try:
+        if "civitai.com" in host:
+            out["source"] = "civitai"
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(link).query)
+            path_parts = urllib.parse.urlparse(link).path.strip("/").split("/")
+            vid = None
+            if "modelVersionId" in q:
+                vid = q["modelVersionId"][0]
+            elif "download" in path_parts and "models" in path_parts:
+                vid = path_parts[-1]
+            if vid:
+                ver = _get_json(CIVITAI_VERSION.format(vid=vid), _civitai_headers())
+            else:
+                mid = next((p for p in path_parts if p.isdigit()), None)
+                if not mid:
+                    out["error"] = "Could not find a Civitai model id in that link."
+                    return out
+                model = _get_json(CIVITAI_MODEL.format(id=mid), _civitai_headers())
+                vers = model.get("modelVersions", [])
+                if not vers:
+                    out["error"] = "That Civitai model has no downloadable versions."
+                    return out
+                ver = vers[0]
+                ver.setdefault("model", {})["type"] = model.get("type")
+            files = ver.get("files", [])
+            primary = next((f for f in files if f.get("primary")), files[0] if files else None)
+            if not primary:
+                out["error"] = "No files on that Civitai version."
+                return out
+            ctype = (ver.get("model") or {}).get("type")
+            out["filename"] = primary.get("name", "model.safetensors")
+            out["download_url"] = primary.get("downloadUrl")
+            out["expected_sha"] = (primary.get("hashes", {}) or {}).get("SHA256", "").lower() or None
+            out["expected_size"] = int(primary.get("sizeKB", 0) * 1024) or None
+            out["category"] = _CIVITAI_TYPE_TO_CAT.get(ctype) or _category_from_path(out["filename"])
+            out["category_reason"] = f"Civitai type: {ctype}" if ctype else "from filename"
+            out["provenance"] = {"source": "civitai", "civitai": {
+                "modelId": ver.get("modelId"), "modelVersionId": ver.get("id"),
+                "versionName": ver.get("name", "")}}
+
+        elif "huggingface.co" in host:
+            out["source"] = "huggingface"
+            repo, rev, path = _parse_hf_url(link)
+            if not repo:
+                out["error"] = "Use a link to a specific file (…/resolve/… or …/blob/…)."
+                return out
+            out["filename"] = os.path.basename(path)
+            sha, size = _hf_remote_sha(repo, path, rev)
+            if sha is None and size is None:
+                out["error"] = f"File not found on Hugging Face: {repo}@{rev}/{path} (check the path and branch)."
+                return out
+            out["download_url"] = HF_RESOLVE.format(repo=repo, rev=rev, path=urllib.parse.quote(path))
+            out["expected_sha"] = sha
+            out["expected_size"] = size
+            out["category"] = _category_from_path(path)
+            out["category_reason"] = "from repo path"
+            out["provenance"] = {"source": "huggingface",
+                                 "huggingface": {"repo_id": repo, "path": path, "revision": rev}}
+
+        else:
+            out["source"] = "url"
+            path = urllib.parse.urlparse(link).path
+            out["filename"] = os.path.basename(path) or "model.bin"
+            out["download_url"] = link
+            try:
+                with _request(link, "HEAD") as r:
+                    out["expected_size"] = int(r.headers.get("Content-Length") or 0) or None
+                    etag = r.headers.get("ETag")
+            except Exception:
+                etag = None
+            out["category"] = _category_from_path(out["filename"])
+            out["category_reason"] = "from filename"
+            out["provenance"] = {"source": "url", "url": {"url": link, "etag": etag,
+                                                          "size": out["expected_size"]}}
+
+        if out["expected_size"]:
+            out["size_human"] = _human_size(out["expected_size"])
+        if Path(out["filename"]).suffix.lower() not in MODEL_EXTS:
+            out["category_reason"] += " (unrecognized extension)"
+        out["ok"] = bool(out["download_url"])
+        if not out["ok"]:
+            out["error"] = "Could not resolve a download URL."
+    except urllib.error.HTTPError as e:
+        out["error"] = f"{e.code} {e.reason}"
+    except Exception as exc:  # noqa: BLE001
+        out["error"] = str(exc)
+    return out
+
+
+def install_model(link: str, category: str,
+                  progress_cb: Optional[Callable[[str, float], None]] = None) -> dict:
+    """Download the model at `link` and place it in models/<category>/."""
+    if category not in VALID_CATEGORIES:
+        return {"ok": False, "error": f"Unknown target folder: {category}"}
+    info = analyze_install(link)
+    if not info.get("ok"):
+        return {"ok": False, "error": info.get("error") or "Could not analyze that link."}
+
+    filename = os.path.basename(info["filename"])
+    if not filename or filename in (".", ".."):
+        return {"ok": False, "error": "Could not determine a safe filename."}
+    dest_dir = MODELS_DIR / category
+    dest = dest_dir / filename
+    if dest.exists():
+        return {"ok": False, "error": f"{filename} already exists in {category}."}
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    headers = _civitai_headers() if info["source"] == "civitai" else None
+    if progress_cb:
+        progress_cb("starting", 0.0)
+    tmp, size = _download(info["download_url"], dest, headers, progress_cb)
+
+    if info.get("expected_size") and size != info["expected_size"]:
+        tmp.unlink(missing_ok=True)
+        return {"ok": False, "error": f"size mismatch (got {size}, expected {info['expected_size']})"}
+    new_sha = None
+    if info.get("expected_sha"):
+        if progress_cb:
+            progress_cb("verifying", 1.0)
+        got = sha256_file(tmp)
+        if got.lower() != info["expected_sha"].lower():
+            tmp.unlink(missing_ok=True)
+            return {"ok": False, "error": "checksum mismatch — file discarded"}
+        new_sha = got
+
+    os.replace(tmp, dest)  # atomic
+    prov = dict(info.get("provenance") or {})
+    if new_sha:
+        prov["sha256"] = new_sha
+    set_source(str(dest), prov)  # so it's immediately update-trackable
+    return {"ok": True, "path": str(dest), "category": category, "filename": filename}
