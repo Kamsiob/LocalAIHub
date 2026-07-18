@@ -46,7 +46,7 @@
     { category_label: "Diffusion models", name: "flux1-dev-Q8_0.gguf",       size_human: "12.5 GB", format: "GGUF",        source: "huggingface", update: { available: true,  detail: "Update available" } },
     { category_label: "Checkpoints",      name: "sd_xl_base_1.0.safetensors", size_human: "6.5 GB", format: "safetensors", source: "civitai",     update: { available: false, detail: "Up to date" } },
     { category_label: "Text encoders",    name: "clip_l.safetensors",         size_human: "246 MB", format: "safetensors", source: "huggingface", update: null },
-    { category_label: "VAE",              name: "sdxl_vae.safetensors",       size_human: "320 MB", format: "safetensors", source: null,          update: null },
+    { category_label: "VAE",              name: "sdxl_vae.safetensors",       size_human: "320 MB", format: "safetensors", source: null,          update: null, untracked: true },
     { category_label: "LoRAs",            name: "add-detail-xl.safetensors",  size_human: "144 MB", format: "safetensors", source: null,          update: null },
   ];
 
@@ -157,16 +157,22 @@
   function comfyAction(m) {
     const p = esc(m.path || "");
     const nm = esc(m.name || "");
-    if (!m.source) {
-      return `<button class="btn-sm" data-act="csource" data-path="${p}" data-name="${nm}">Set source</button>`;
+    if (m.source) {
+      if (m.update && m.update.available === true) {
+        return `<button class="btn-sm accent" data-act="cupdate" data-path="${p}">Update</button>`;
+      }
+      if (m.update && m.update.available === false) {
+        return `<span class="cu-uptodate" title="${esc((m.update && m.update.detail) || "")}">Up to date</span>`;
+      }
+      return `<button class="btn-sm" data-act="ccheck" data-path="${p}">Check</button>`;
     }
-    if (m.update && m.update.available === true) {
-      return `<button class="btn-sm accent" data-act="cupdate" data-path="${p}">Update</button>`;
+    // No source. If we already tried and found nothing, say so plainly (but keep
+    // it clickable so a manual source can still be set); otherwise offer to set one.
+    if (m.untracked) {
+      return `<button class="cu-untracked" data-act="csource" data-path="${p}" data-name="${nm}"
+        title="No update source found — click to link a Hugging Face repo or URL">No update source</button>`;
     }
-    if (m.update && m.update.available === false) {
-      return `<span class="cu-uptodate" title="${esc((m.update && m.update.detail) || "")}">Up to date</span>`;
-    }
-    return `<button class="btn-sm" data-act="ccheck" data-path="${p}">Check</button>`;
+    return `<button class="btn-sm" data-act="csource" data-path="${p}" data-name="${nm}">Set source</button>`;
   }
 
   // ---- theme --------------------------------------------------------------

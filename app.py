@@ -90,11 +90,21 @@ class Backend(QObject):
         manifest = comfy_models.load_manifest()
         mroot = self.comfyui.models_dir
         for m in comfyui_models:
-            abs_path = str((mroot / m["category"] / m["name"]).resolve())
-            src = manifest.get(abs_path) or {}
-            m["path"] = abs_path
-            m["source"] = src.get("source")
-            m["update"] = src.get("last_check")
+            # Enrichment must never hide a model or break the list: a bad manifest
+            # entry degrades that one row to "no tracking", nothing more.
+            try:
+                abs_path = str((mroot / m["category"] / m["name"]).resolve())
+                src = manifest.get(abs_path)
+                src = src if isinstance(src, dict) else {}
+                m["path"] = abs_path
+                m["source"] = src.get("source")
+                m["update"] = src.get("last_check")
+                m["untracked"] = bool(src.get("untracked")) and not src.get("source")
+            except Exception:
+                m.setdefault("path", "")
+                m["source"] = None
+                m["update"] = None
+                m["untracked"] = False
 
         return {"services": services, "models": models, "comfyui_models": comfyui_models}
 

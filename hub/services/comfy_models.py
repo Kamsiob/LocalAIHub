@@ -126,7 +126,11 @@ def identify_civitai(path, progress_cb: Optional[Callable[[float], None]] = None
         mv = _get_json(CIVITAI_BY_HASH.format(sha=sha))
     except urllib.error.HTTPError as e:
         if e.code == 404:
-            return {"found": False, "sha256": sha, "detail": "Not found on Civitai"}
+            # No Civitai match. Record a lightweight "untracked" marker so the UI
+            # can show "installed, no update source" instead of silently reverting
+            # to "Set source". Any real source set later takes precedence.
+            set_source(path, {"untracked": True, "detail": "No match on Civitai"})
+            return {"found": False, "sha256": sha, "detail": "No match on Civitai"}
         raise
     entry = {
         "source": "civitai",
