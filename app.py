@@ -47,6 +47,7 @@ class Backend(QObject):
             "openwebui": self.openwebui,
             "comfyui": self.comfyui,
         }
+        self._last_failed: dict = {}   # for one-shot "stopped unexpectedly" alerts
 
     # --- state collection ----------------------------------------------------
     def _collect(self) -> dict:
@@ -58,9 +59,16 @@ class Backend(QObject):
         ):
             try:
                 st = svc.status()
-                services[key] = {"active": st.active, "serving": st.serving}
+                services[key] = {"active": st.active, "serving": st.serving,
+                                 "failed": st.failed, "result": st.result}
             except Exception:
-                services[key] = {"active": False, "serving": False}
+                services[key] = {"active": False, "serving": False, "failed": False}
+
+            # One-shot alert when a service transitions into the failed state.
+            is_failed = services[key].get("failed")
+            if is_failed and not self._last_failed.get(key):
+                self.notify.emit(f"{svc.display_name} stopped unexpectedly — check its log")
+            self._last_failed[key] = is_failed
 
         # Ollama extras: loaded-in-memory model + installed model list
         loaded = None
@@ -249,6 +257,17 @@ class Backend(QObject):
     def set_theme(self, theme: str) -> None:
         if theme in ("light", "dark"):
             config.set_("theme", theme)
+
+    @Slot(str, result=str)
+    def get_log(self, key: str) -> str:
+        """Last log lines for a service, shown after a crash."""
+        svc = self._services.get(key)
+        if svc is None:
+            return "(unknown service)"
+        try:
+            return svc.logs(40)
+        except Exception as exc:  # noqa: BLE001
+            return f"(could not read log: {exc})"
 
     @Slot(str)
     def open_url(self, url: str) -> None:

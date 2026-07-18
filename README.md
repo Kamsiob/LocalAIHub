@@ -34,6 +34,10 @@ you click. Nothing runs in the background.
   atomically replaced). Provenance is stored locally in
   `~/.config/local-ai-hub/comfy_models.json`. A model whose source can't be
   determined still lists normally, shown as **“no update source.”**
+- **Crash-aware** — if a service fails to start or dies while running (relevant
+  for ComfyUI, which has a known GPU crash history on some hardware), the app
+  shows it in red as **“Stopped unexpectedly”** with a **View log** button
+  (last lines of the unit's journal) — not a silent flip to gray.
 - **Light & dark themes** — a polished pill toggle; your choice persists between
   launches.
 - **Open in browser** — running web UIs (Open WebUI, ComfyUI) get an **Open**

@@ -47,6 +47,8 @@ class ServiceStatus:
     enabled: Optional[str]
     sub_state: str = ""
     detail: str = ""
+    failed: bool = False        # unit entered the systemd "failed" state (a crash)
+    result: str = ""            # systemd Result (exit-code / signal / success)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -73,6 +75,31 @@ class Service:
         cp = run_systemctl("show", self.unit, "-p", "SubState", "--value")
         return cp.stdout.strip()
 
+    def show_props(self, *props: str) -> dict:
+        args = ["show", self.unit]
+        for p in props:
+            args += ["-p", p]
+        cp = run_systemctl(*args)
+        out: dict = {}
+        for line in cp.stdout.splitlines():
+            if "=" in line:
+                k, v = line.split("=", 1)
+                out[k] = v
+        return out
+
+    def logs(self, lines: int = 40) -> str:
+        """Last N journal lines for this unit (for showing after a crash)."""
+        journalctl = shutil.which("journalctl") or "journalctl"
+        try:
+            cp = subprocess.run(
+                [journalctl, "--user", "-u", self.unit, "-n", str(lines),
+                 "--no-pager", "-o", "short-precise"],
+                capture_output=True, text=True, timeout=15,
+            )
+            return (cp.stdout or cp.stderr or "").strip() or "(no log output)"
+        except Exception as exc:  # noqa: BLE001
+            return f"(could not read log: {exc})"
+
     def enabled_state(self) -> Optional[str]:
         # Returns "enabled"/"disabled"/"generated"/"static"; None if unknown.
         out = run_systemctl("is-enabled", self.unit).stdout.strip()
@@ -84,14 +111,18 @@ class Service:
         return http_probe(self.health_url)
 
     def status(self) -> ServiceStatus:
-        active = self.is_active()
+        props = self.show_props("ActiveState", "SubState", "Result")
+        active_state = props.get("ActiveState", "")
+        active = active_state == "active"
         return ServiceStatus(
             name=self.display_name,
             unit=self.unit,
             active=active,
             serving=self.is_serving() if active else False,
             enabled=self.enabled_state(),
-            sub_state=self.sub_state(),
+            sub_state=props.get("SubState", ""),
+            failed=active_state == "failed",
+            result=props.get("Result", ""),
         )
 
     # --- control -------------------------------------------------------------

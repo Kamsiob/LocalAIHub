@@ -15,6 +15,7 @@
   --comfyui: #ff5c9d;
   --ok: #2fbf71;
   --warn: #f5a524;
+  --err: #ff5c5c;
 
   /* motion */
   --ease: cubic-bezier(.22, .61, .36, 1);
@@ -310,6 +311,27 @@ body {
   transition: color var(--dur) var(--ease); }
 .cu-untracked::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--text-faint); }
 .cu-untracked:hover { color: var(--text-muted); }
+
+/* crashed / failed service */
+.card.is-failed { border-color: color-mix(in srgb, var(--err) 45%, var(--border)); }
+.card.is-failed .dot { background: var(--err);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--err) 22%, transparent); }
+.card.is-failed .svc-status { color: var(--err); font-weight: 600; }
+.btn-sm.danger { color: var(--err); border-color: color-mix(in srgb, var(--err) 45%, transparent);
+  display: inline-flex; align-items: center; gap: 6px; }
+.btn-sm.danger svg { width: 13px; height: 13px; }
+.btn-sm.danger:hover { background: color-mix(in srgb, var(--err) 12%, transparent);
+  border-color: var(--err); }
+
+/* log modal */
+.log-modal { width: min(660px, 94vw); }
+.log-pre {
+  margin-top: 12px; background: var(--surface-inset); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 14px; max-height: 340px; overflow: auto;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11.5px; line-height: 1.55; color: var(--text-muted);
+  white-space: pre-wrap; word-break: break-word;
+}
 
 /* source modal */
 .modal-backdrop { position: fixed; inset: 0; z-index: 100; display: none;

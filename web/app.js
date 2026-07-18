@@ -64,6 +64,7 @@
   const state = { services: {}, models: [], comfyModels: [], expanded: { ollama: false, comfyui: false } };
 
   function statusText(svc, s) {
+    if (s && s.failed) return { txt: "Stopped unexpectedly", cls: "is-failed" };
     if (!s || !s.active) return { txt: "Stopped", cls: "" };
     if (!s.serving) return { txt: "Starting…", cls: "is-starting" };
     if (svc === "comfyui" && s.generating) return { txt: "Generating…", cls: "is-on is-starting" };
@@ -92,6 +93,7 @@
             <div class="svc-status"><span class="dot"></span>${st.txt}</div>
           </div>
           <div class="svc-right">
+            ${s.failed ? `<button class="btn-sm danger" data-act="clog" data-svc="${svc}">${I.warn}View log</button>` : ""}
             ${(meta.webPort && s.serving) ? `<button class="btn-open" data-act="open" data-port="${meta.webPort}" title="Open http://127.0.0.1:${meta.webPort}">Open ${I.external2}</button>` : ""}
             ${meta.hasModels ? `<div class="chevron" data-act="expand">${I.chevron}</div>` : ""}
             <div class="toggle" data-act="toggle" role="switch" aria-checked="${on}"><span class="knob"></span></div>
@@ -325,6 +327,37 @@
     modalPath = null;
   }
 
+  function buildLogModal() {
+    const bd = document.createElement("div");
+    bd.className = "modal-backdrop";
+    bd.id = "logModal";
+    bd.innerHTML = `
+      <div class="modal log-modal">
+        <h3 id="lmTitle">Service log</h3>
+        <div class="sub">The last lines from this service's journal.</div>
+        <pre class="log-pre" id="lmBody">Loading…</pre>
+        <div class="modal-foot"><button class="btn-ghost" id="lmClose">Close</button></div>
+      </div>`;
+    document.body.appendChild(bd);
+    bd.addEventListener("click", e => { if (e.target === bd) bd.classList.remove("show"); });
+    bd.querySelector("#lmClose").addEventListener("click", () => bd.classList.remove("show"));
+  }
+  function openLogModal(svc) {
+    const bd = document.getElementById("logModal");
+    bd.querySelector("#lmTitle").textContent = (SVC_META[svc] ? SVC_META[svc].name : svc) + " — recent log";
+    const body = bd.querySelector("#lmBody");
+    body.textContent = "Loading…";
+    bd.classList.add("show");
+    if (backend && backend.get_log) {
+      backend.get_log(svc, t => {
+        body.textContent = t || "(no output)";
+        body.scrollTop = body.scrollHeight;   // newest lines (the crash) first
+      });
+    } else {
+      body.textContent = "(log is available when running in the app)";
+    }
+  }
+
   // ---- event wiring -------------------------------------------------------
   function onRescan() {
     const b = document.getElementById("rescanBtn");
@@ -336,6 +369,7 @@
 
   function wire() {
     buildModal();
+    buildLogModal();
     document.getElementById("brandMark").innerHTML = I.spark;
     document.getElementById("sunIcon").innerHTML = I.sun;
     document.getElementById("moonIcon").innerHTML = I.moon;
@@ -357,6 +391,7 @@
       else if (act === "ccheck") onComfyCheck(el.dataset.path);
       else if (act === "cupdate") onComfyUpdate(el.dataset.path);
       else if (act === "open") openUrl(localServiceUrl(el.dataset.port));
+      else if (act === "clog") openLogModal(el.dataset.svc);
     });
 
     document.querySelectorAll(".browse-link").forEach(a => {
