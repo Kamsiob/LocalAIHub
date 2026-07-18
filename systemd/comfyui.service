@@ -1,0 +1,27 @@
+[Unit]
+Description=ComfyUI Service (user)
+After=network-online.target
+Wants=network-online.target
+# Bounded restart: if it crashes 5 times within 5 minutes, systemd gives up and
+# leaves the unit "failed" instead of hiding a real crash in an infinite loop.
+# (Relevant on Strix Halo / ROCm where a GPU segfault is possible.)
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=/home/Kamsiob/ComfyUI
+# GPU environment — replicated verbatim from the user's validated
+# start_comfyui_rocm.sh. HSA_ENABLE_SDMA=0 is the Strix Halo crash mitigation.
+Environment="HIP_VISIBLE_DEVICES=0"
+Environment="HSA_ENABLE_SDMA=0"
+Environment="HSA_USE_SVM=0"
+Environment="PYTORCH_ALLOC_CONF=expandable_segments:True,garbage_collection_threshold:0.8,max_split_size_mb:512"
+ExecStart=/home/Kamsiob/ComfyUI/venv/bin/python main.py
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=120
+SyslogIdentifier=comfyui
+
+[Install]
+WantedBy=default.target
