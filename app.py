@@ -29,6 +29,7 @@ sys.path.insert(0, str(ROOT))
 from hub import config  # noqa: E402
 from hub.services import ComfyUIService, OllamaService, OpenWebUIService  # noqa: E402
 from hub.services import comfy_models  # noqa: E402
+from hub.services import setup_check  # noqa: E402
 
 
 class Backend(QObject):
@@ -36,6 +37,7 @@ class Backend(QObject):
 
     state_changed = Signal(str)   # JSON: {services:{...}, models:[...]}
     notify = Signal(str)
+    setup_result = Signal(str)    # JSON of a fresh setup-check run (after a fix)
 
     def __init__(self) -> None:
         super().__init__()
@@ -300,6 +302,28 @@ class Backend(QObject):
             except Exception as exc:  # noqa: BLE001
                 self.notify.emit(f"Install failed: {exc}")
             self._emit_state()
+        threading.Thread(target=work, daemon=True).start()
+
+    @Slot(result=str)
+    def run_setup_check(self) -> str:
+        try:
+            return json.dumps(setup_check.run_checks())
+        except Exception as exc:  # noqa: BLE001
+            return json.dumps({"applies": False, "error": str(exc), "platform": {}, "checks": []})
+
+    @Slot(str)
+    def apply_setup_fix(self, fix_id: str) -> None:
+        def work() -> None:
+            self.notify.emit("Applying fix…")
+            try:
+                res = setup_check.apply_fix(fix_id)
+                self.notify.emit(res.get("message", "done"))
+            except Exception as exc:  # noqa: BLE001
+                self.notify.emit(f"Fix failed: {exc}")
+            try:
+                self.setup_result.emit(json.dumps(setup_check.run_checks()))
+            except Exception:
+                pass
         threading.Thread(target=work, daemon=True).start()
 
     @Slot(str)

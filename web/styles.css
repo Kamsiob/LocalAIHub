@@ -348,6 +348,28 @@ body {
   border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); }
 .m-warn svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
 
+/* setup check modal */
+.sc-modal { width: min(560px, 94vw); }
+.sc-plat { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted);
+  padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 12px; margin-bottom: 12px; }
+.sc-plat svg { width: 15px; height: 15px; color: var(--ok); }
+.sc-plat .sc-summary { margin-left: auto; font-weight: 600; color: var(--text); }
+.sc-list { display: flex; flex-direction: column; }
+.sc-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 4px;
+  border-top: 1px solid var(--border); }
+.sc-row:first-child { border-top: none; }
+.sc-status { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid;
+  place-items: center; margin-top: 1px; }
+.sc-status svg { width: 13px; height: 13px; }
+.sc-status.pass { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); }
+.sc-status.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent); }
+.sc-status.fail { color: var(--err); background: color-mix(in srgb, var(--err) 15%, transparent); }
+.sc-text { flex: 1 1 auto; min-width: 0; }
+.sc-label { font-size: 13.5px; font-weight: 600; }
+.sc-detail { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; margin-top: 2px; }
+.sc-row .btn-sm { flex: none; margin-top: 1px; }
+
 /* log modal */
 .log-modal { width: min(660px, 94vw); }
 .log-pre {

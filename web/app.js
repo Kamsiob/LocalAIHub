@@ -20,6 +20,9 @@
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
     external2: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5h5v5M19 5l-8 8M18 14v4a1 1 0 01-1 1H6a1 1 0 01-1-1V7a1 1 0 011-1h4"/></svg>',
     warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>',
+    shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg>',
+    xmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
     library: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5.5A1.5 1.5 0 015.5 4H11v16H5.5A1.5 1.5 0 014 18.5v-13z"/><path d="M11 4h7.5A1.5 1.5 0 0120 5.5v13a1.5 1.5 0 01-1.5 1.5H11"/></svg>',
     hugging: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M8.5 10h.01M15.5 10h.01M8.5 14.5c1 1 2.2 1.5 3.5 1.5s2.5-.5 3.5-1.5" stroke-linecap="round"/></svg>',
     civitai: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="8.5" cy="10" r="1.5"/><path d="M4 17l4.5-4 3 2.5L16 11l4 4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -412,6 +415,70 @@
     bd.classList.add("show");
   }
 
+  function buildSetupModal() {
+    const bd = document.createElement("div");
+    bd.className = "modal-backdrop";
+    bd.id = "setupModal";
+    bd.innerHTML = `
+      <div class="modal sc-modal">
+        <h3>Setup check</h3>
+        <div class="sub">Verifies the supported setup: Bazzite / Fedora Atomic on an AMD Strix Halo (gfx1151) iGPU.</div>
+        <div id="scBody">Checking…</div>
+        <div class="modal-foot" style="gap:10px">
+          <button class="btn-ghost" id="scClose">Close</button>
+          <button class="btn-sm" id="scRerun">Re-run</button>
+        </div>
+      </div>`;
+    document.body.appendChild(bd);
+    bd.addEventListener("click", e => { if (e.target === bd) bd.classList.remove("show"); });
+    bd.querySelector("#scClose").addEventListener("click", () => bd.classList.remove("show"));
+    bd.querySelector("#scRerun").addEventListener("click", runSetupCheck);
+    bd.querySelector("#scBody").addEventListener("click", e => {
+      const b = e.target.closest("[data-fix]");
+      if (!b) return;
+      if (backend && backend.apply_setup_fix) {
+        b.textContent = "Fixing…"; b.disabled = true;
+        toast("Applying fix…");
+        backend.apply_setup_fix(b.dataset.fix);
+      }
+    });
+  }
+  function runSetupCheck() {
+    const body = document.getElementById("scBody");
+    body.textContent = "Checking…";
+    if (backend && backend.run_setup_check) {
+      backend.run_setup_check(res => { try { renderSetup(JSON.parse(res)); } catch (e) { body.textContent = "Check failed."; } });
+    } else {
+      body.innerHTML = `<div class="m-hint">Setup check runs inside the app (needs the backend).</div>`;
+    }
+  }
+  function openSetupModal() {
+    document.getElementById("setupModal").classList.add("show");
+    runSetupCheck();
+  }
+  const SC_ICON = { pass: I.check, warn: I.warn, fail: I.xmark };
+  function renderSetup(data) {
+    const body = document.getElementById("scBody");
+    if (data.error) { body.innerHTML = `<div class="m-warn" style="display:flex">${I.warn}<span>${esc(data.error)}</span></div>`; return; }
+    const p = data.platform || {};
+    if (!data.applies) {
+      body.innerHTML = `
+        <div class="sc-plat">Detected: <b>${esc(p.distro || "unknown")}</b> · <b>${esc(p.gpu || "unknown")}</b></div>
+        <div class="m-hint" style="margin-top:12px">These checks apply only to Bazzite / Fedora Atomic on an AMD Strix Halo (gfx1151) iGPU. This machine doesn't match, so they're skipped — they wouldn't apply here.</div>`;
+      return;
+    }
+    const rows = (data.checks || []).map(c => `
+      <div class="sc-row">
+        <span class="sc-status ${c.status}">${SC_ICON[c.status] || ""}</span>
+        <div class="sc-text"><div class="sc-label">${esc(c.label)}</div><div class="sc-detail">${esc(c.detail)}</div></div>
+        ${c.fix ? `<button class="btn-sm" data-fix="${esc(c.fix)}">Fix</button>` : ""}
+      </div>`).join("");
+    const pass = data.checks.filter(c => c.status === "pass").length;
+    body.innerHTML = `
+      <div class="sc-plat">${I.check2 || ""}<b>${esc(p.distro)}</b> · ${esc(p.gpu)} <span class="sc-summary">${pass}/${data.checks.length} OK</span></div>
+      <div class="sc-list">${rows}</div>`;
+  }
+
   function buildLogModal() {
     const bd = document.createElement("div");
     bd.className = "modal-backdrop";
@@ -456,9 +523,13 @@
     buildModal();
     buildLogModal();
     buildInstallModal();
+    buildSetupModal();
     document.getElementById("brandMark").innerHTML = I.spark;
     document.getElementById("sunIcon").innerHTML = I.sun;
     document.getElementById("moonIcon").innerHTML = I.moon;
+    const setupBtn = document.getElementById("setupBtn");
+    setupBtn.innerHTML = I.shield;
+    setupBtn.addEventListener("click", openSetupModal);
     const rescanBtn = document.getElementById("rescanBtn");
     rescanBtn.innerHTML = I.refresh;
     rescanBtn.addEventListener("click", onRescan);
@@ -506,6 +577,11 @@
         backend = channel.objects.backend;
         if (backend.state_changed) backend.state_changed.connect((json) => applyState(JSON.parse(json)));
         if (backend.notify) backend.notify.connect((msg) => toast(msg));
+        if (backend.setup_result) backend.setup_result.connect((json) => {
+          if (document.getElementById("setupModal").classList.contains("show")) {
+            try { renderSetup(JSON.parse(json)); } catch (e) {}
+          }
+        });
         if (backend.get_theme) backend.get_theme(function (t) { if (t) { applyTheme(t); localStorage.setItem("theme", t); } });
         if (backend.request_refresh) backend.request_refresh();
       });
