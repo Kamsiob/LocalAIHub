@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "web"
 sys.path.insert(0, str(ROOT))
 
+from hub import config  # noqa: E402
 from hub.services import ComfyUIService, OllamaService, OpenWebUIService  # noqa: E402
 
 
@@ -131,6 +132,15 @@ class Backend(QObject):
             self.state_changed.emit(json.dumps(self._collect()))
 
         threading.Thread(target=work, daemon=True).start()
+
+    @Slot(result=str)
+    def get_theme(self) -> str:
+        return config.get("theme") or ""
+
+    @Slot(str)
+    def set_theme(self, theme: str) -> None:
+        if theme in ("light", "dark"):
+            config.set_("theme", theme)
 
     @Slot(str)
     def open_url(self, url: str) -> None:
