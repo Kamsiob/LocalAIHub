@@ -84,13 +84,34 @@ entry that runs the app through the venv — double-clicking just works.
 Local AI Hub is **free and open source** under the [MIT License](LICENSE) — use it, fork it,
 modify it, redistribute it. The only condition is keeping the copyright notice with copies.
 
-## 💬 Contact
+## 💬 Connect
 
-Questions or suggestions? Email **[hello@kamsiob.com](mailto:hello@kamsiob.com)** —
-or open an issue on [GitHub](https://github.com/Kamsiob/).
+- 📺 **YouTube** — [youtube.com/@kamsiob](https://youtube.com/@kamsiob)
+- 💻 **GitHub** — [github.com/kamsiob](https://github.com/kamsiob)
+- 🌐 **Website** — [kamsiob.com](https://kamsiob.com)
+- 💬 **Telegram (Kamsiob Lab)** — [t.me/+g5LKm9rUnNcxMjk5](https://t.me/+g5LKm9rUnNcxMjk5)
+- ✉️ **Feedback** — [hello@kamsiob.com](mailto:hello@kamsiob.com)
+
+Same links live inside the app, under **About** in the header.
+
+## ☕ Support this project
+
+Local AI Hub is free and always will be. If it's useful to you and you'd like to help
+keep it going, you can buy me a coffee — entirely optional, always appreciated.
+
+<p align="center">
+  <a href="https://buymeacoffee.com/kamsiob">
+    <img alt="Buy Me a Coffee" src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black">
+  </a>
+</p>
 
 ---
 
 <p align="center">
-  Made by <b>Kamsiob</b> · <a href="https://github.com/Kamsiob/">GitHub</a> · <a href="https://www.youtube.com/@Kamsiob">Kamsiob&nbsp;on&nbsp;Linux (@Kamsiob) on YouTube</a> · <a href="mailto:hello@kamsiob.com">hello@kamsiob.com</a>
+  Made by <b>Kamsiob</b> ·
+  <a href="https://youtube.com/@kamsiob">YouTube</a> ·
+  <a href="https://github.com/kamsiob">GitHub</a> ·
+  <a href="https://kamsiob.com">Website</a> ·
+  <a href="https://t.me/+g5LKm9rUnNcxMjk5">Telegram</a> ·
+  <a href="mailto:hello@kamsiob.com">hello@kamsiob.com</a>
 </p>

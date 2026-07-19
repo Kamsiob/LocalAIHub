@@ -29,6 +29,23 @@
     hugging: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M8.5 10h.01M15.5 10h.01M8.5 14.5c1 1 2.2 1.5 3.5 1.5s2.5-.5 3.5-1.5" stroke-linecap="round"/></svg>',
     civitai: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="8.5" cy="10" r="1.5"/><path d="M4 17l4.5-4 3 2.5L16 11l4 4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5h5v5M19 5l-8 8M18 14v4a1 1 0 01-1 1H6a1 1 0 01-1-1V7a1 1 0 011-1h4"/></svg>',
+    info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg>',
+    youtube: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M23 12s0-3.2-.4-4.7a2.5 2.5 0 00-1.77-1.77C19.34 5.1 12 5.1 12 5.1s-7.34 0-8.83.43A2.5 2.5 0 001.4 7.3C1 8.8 1 12 1 12s0 3.2.4 4.7a2.5 2.5 0 001.77 1.77C4.66 18.9 12 18.9 12 18.9s7.34 0 8.83-.43a2.5 2.5 0 001.77-1.77C23 15.2 23 12 23 12zM9.75 15.02V8.98L15.5 12l-5.75 3.02z"/></svg>',
+    github: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48 0-.24-.01-.87-.01-1.7-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02.8-.22 1.65-.33 2.5-.34.85 0 1.7.12 2.5.34 1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85 0 1.34-.01 2.42-.01 2.75 0 .27.18.58.69.48A10.01 10.01 0 0022 12c0-5.52-4.48-10-10-10z"/></svg>',
+    globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/></svg>',
+    telegram: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.94 4.63l-3.3 15.56c-.25 1.1-.9 1.37-1.83.85l-5.05-3.72-2.44 2.35c-.27.27-.5.5-1.02.5l.36-5.16L17.5 6.9c.4-.36-.09-.56-.62-.2L6.9 13.06l-4.9-1.53c-1.07-.33-1.09-1.07.22-1.58l19.14-7.38c.89-.33 1.67.2 1.38 1.6z"/></svg>',
+    coffee: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13v5a4 4 0 01-4 4H8a4 4 0 01-4-4V8z"/><path d="M17 9h1.5a2.5 2.5 0 010 5H17"/><path d="M7 2.6c-.4.6-.4 1.4 0 2M11 2.6c-.4.6-.4 1.4 0 2M14.5 20.5h-11"/></svg>',
+    mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M4 7l8 5 8-5"/></svg>',
+  };
+
+  // The user's finalized links (used by the About & Links panel).
+  const LINKS = {
+    youtube:  "https://youtube.com/@kamsiob",
+    github:   "https://github.com/kamsiob",
+    website:  "https://kamsiob.com",
+    bmc:      "https://buymeacoffee.com/kamsiob",
+    telegram: "https://t.me/+g5LKm9rUnNcxMjk5",
+    email:    "hello@kamsiob.com",
   };
 
   const SVC_META = {
@@ -551,6 +568,53 @@
     } catch (e) { if (navigator.clipboard) navigator.clipboard.writeText(text); }
   }
 
+  // ---- About & Links panel (same full-screen pattern as Getting Started) --
+  function linkChip(key, icon, title, sub) {
+    return `<a class="link-chip" data-act="open" data-url="${LINKS[key]}">
+      <span class="lc-icon">${icon}</span>
+      <span class="lc-text"><span class="lc-title">${title}</span><span class="lc-sub">${sub}</span></span>
+      <span class="lc-ext">${I.ext}</span></a>`;
+  }
+  function buildAboutScreen() {
+    const el = document.createElement("div");
+    el.className = "guide-screen";   // reuse the Getting Started shell for an exact visual match
+    el.id = "aboutScreen";
+    el.innerHTML = `
+      <div class="guide-head">
+        <div><div class="guide-title">About &amp; Links</div><div class="guide-sub">Local AI Hub · made by Kamsiob</div></div>
+        <button class="btn-ghost" id="aboutClose">Close</button>
+      </div>
+      <div class="guide-body">
+        <div class="about-lead">Local AI Hub is a free, open-source control panel for the AI services running on your own machine — <b>local-only, no accounts, no telemetry</b>.</div>
+        <div class="about-note">Follow along, get help, or just say hello through the links below.</div>
+
+        <div class="about-section-label">Links</div>
+        <div class="link-grid">
+          ${linkChip("youtube",  I.youtube,  "YouTube",  "@kamsiob")}
+          ${linkChip("github",   I.github,   "GitHub",   "github.com/kamsiob")}
+          ${linkChip("website",  I.globe,    "Website",  "kamsiob.com")}
+          ${linkChip("telegram", I.telegram, "Telegram", "Kamsiob Lab")}
+        </div>
+
+        <div class="about-section-label">Support</div>
+        <a class="support-btn" data-act="open" data-url="${LINKS.bmc}">
+          <span class="sb-icon">${I.coffee}</span>
+          <span class="sb-text"><span class="sb-title">Buy me a coffee</span><span class="sb-sub">Support the project — entirely optional, always appreciated</span></span>
+          <span class="sb-ext">${I.ext}</span>
+        </a>
+
+        <div class="about-section-label">Feedback</div>
+        <a class="email-link" data-act="open" data-url="mailto:${LINKS.email}">${I.mail}<span>Questions or suggestions? <b>${LINKS.email}</b></span></a>
+      </div>`;
+    document.body.appendChild(el);
+    el.querySelector("#aboutClose").addEventListener("click", () => el.classList.remove("show"));
+    el.addEventListener("click", (e) => {
+      const a = e.target.closest("[data-act='open']");
+      if (a) { e.preventDefault(); openUrl(a.dataset.url); }
+    });
+  }
+  function openAbout() { document.getElementById("aboutScreen").classList.add("show"); }
+
   function buildProgressBar() {
     const el = document.createElement("div");
     el.className = "dl-progress";
@@ -587,6 +651,7 @@
     buildLogModal();
     buildSetupModal();
     buildGuideScreen();
+    buildAboutScreen();
     buildProgressBar();
     document.getElementById("brandMark").innerHTML = I.spark;
     document.getElementById("sunIcon").innerHTML = I.sun;
@@ -594,6 +659,9 @@
     const guideBtn = document.getElementById("guideBtn");
     guideBtn.querySelector(".gb-icon").innerHTML = I.book;
     guideBtn.addEventListener("click", openGuide);
+    const aboutBtn = document.getElementById("aboutBtn");
+    aboutBtn.querySelector(".gb-icon").innerHTML = I.info;
+    aboutBtn.addEventListener("click", openAbout);
     const setupBtn = document.getElementById("setupBtn");
     setupBtn.innerHTML = I.shield;
     setupBtn.addEventListener("click", openSetupModal);
