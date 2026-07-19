@@ -27,6 +27,7 @@ WEB = ROOT / "web"
 sys.path.insert(0, str(ROOT))
 
 from hub import config  # noqa: E402
+from hub.guide import GUIDE  # noqa: E402
 from hub.services import ComfyUIService, OllamaService, OpenWebUIService  # noqa: E402
 from hub.services import comfy_models  # noqa: E402
 from hub.services import setup_check  # noqa: E402
@@ -305,6 +306,10 @@ class Backend(QObject):
             return svc.logs(40)
         except Exception as exc:  # noqa: BLE001
             return f"(could not read log: {exc})"
+
+    @Slot(result=str)
+    def get_guide(self) -> str:
+        return json.dumps(GUIDE)
 
     @Slot(str)
     def set_civitai_key(self, key: str) -> None:

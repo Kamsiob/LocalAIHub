@@ -97,6 +97,76 @@ body {
 .brand-sub { font-size: 12.5px; color: var(--text-muted); font-weight: 450; margin-top: 1px; }
 
 .header-actions { display: flex; align-items: center; gap: 10px; }
+.btn-guide {
+  display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px;
+  border-radius: 11px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
+}
+.btn-guide .gb-icon { display: grid; place-items: center; }
+.btn-guide .gb-icon svg { width: 16px; height: 16px; color: var(--ollama); }
+.btn-guide:hover { border-color: var(--border-strong); background: var(--surface-2); }
+
+/* Getting Started screen */
+.guide-screen {
+  position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column;
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  opacity: 0; pointer-events: none; transition: opacity var(--dur) var(--ease);
+}
+.guide-screen.show { opacity: 1; pointer-events: auto; }
+.guide-head { display: flex; align-items: center; justify-content: space-between;
+  width: 100%; max-width: 840px; margin: 0 auto; padding: 24px 28px 14px; }
+.guide-title { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+.guide-sub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.guide-tabs { display: flex; gap: 6px; width: 100%; max-width: 840px; margin: 0 auto;
+  padding: 0 28px; border-bottom: 1px solid var(--border); }
+.guide-tab { padding: 9px 16px; border: none; background: none; color: var(--text-muted);
+  font-size: 13.5px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent;
+  transition: color var(--dur) var(--ease); }
+.guide-tab:hover { color: var(--text); }
+.guide-tab.active { color: var(--text); border-bottom-color: var(--ollama); }
+.guide-body { flex: 1 1 auto; overflow-y: auto; width: 100%; max-width: 840px; margin: 0 auto;
+  padding: 20px 28px 64px; }
+.guide-intro { margin-bottom: 18px; }
+
+.guide-sec { border: 1px solid var(--border); border-radius: 14px; margin-bottom: 12px;
+  background: var(--surface); overflow: hidden; box-shadow: var(--shadow-sm); }
+.guide-sec-head { display: flex; align-items: center; justify-content: space-between;
+  padding: 15px 18px; cursor: pointer; font-size: 15px; font-weight: 650; }
+.guide-chev svg { width: 18px; height: 18px; color: var(--text-muted);
+  transition: transform var(--dur) var(--ease); }
+.guide-sec.open .guide-chev svg { transform: rotate(180deg); }
+.guide-sec-body { display: none; padding: 2px 18px 16px; }
+.guide-sec.open .guide-sec-body { display: block; }
+
+.gb-p { font-size: 13.5px; line-height: 1.65; color: var(--text); margin: 10px 0; }
+.gb-h { font-size: 14px; font-weight: 650; margin: 18px 0 8px; }
+.gb-ul { margin: 8px 0; padding-left: 18px; }
+.gb-ul li { font-size: 13.5px; line-height: 1.6; color: var(--text); margin: 3px 0; }
+.gb-ul li.gb-noli { list-style: none; margin-left: -18px; }
+
+.gb-code { position: relative; margin: 12px 0; }
+.gb-code pre { background: var(--surface-inset); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px; overflow-x: auto; }
+.gb-code code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12.5px; line-height: 1.6; color: var(--text); white-space: pre; }
+.gb-copy { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px;
+  border-radius: 8px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-muted); display: grid; place-items: center; cursor: pointer; opacity: .9;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease); }
+.gb-copy:hover { color: var(--text); opacity: 1; }
+.gb-copy.copied { color: var(--ok); border-color: var(--ok); }
+.gb-copy svg { width: 15px; height: 15px; }
+
+.gb-callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px;
+  border-radius: 12px; margin: 12px 0; font-size: 13px; line-height: 1.6; }
+.gb-callout svg { width: 17px; height: 17px; flex: none; margin-top: 2px; }
+.gb-callout.warn { background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); color: var(--text); }
+.gb-callout.warn svg { color: var(--warn); }
+.gb-callout.note { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted); }
+.gb-callout.note svg { color: var(--ollama); }
 .icon-btn {
   width: 38px; height: 38px; border-radius: 11px;
   border: 1px solid var(--border); background: var(--surface);

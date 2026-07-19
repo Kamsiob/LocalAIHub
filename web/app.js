@@ -21,6 +21,8 @@
     external2: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5h5v5M19 5l-8 8M18 14v4a1 1 0 01-1 1H6a1 1 0 01-1-1V7a1 1 0 011-1h4"/></svg>',
     warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>',
     shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>',
+    book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 015.5 4H12v15H5.5A1.5 1.5 0 004 20.5v-15z"/><path d="M20 5.5A1.5 1.5 0 0018.5 4H12v15h6.5a1.5 1.5 0 011.5 1.5v-15z"/></svg>',
+    copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>',
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg>',
     xmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
     library: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5.5A1.5 1.5 0 015.5 4H11v16H5.5A1.5 1.5 0 014 18.5v-13z"/><path d="M11 4h7.5A1.5 1.5 0 0120 5.5v13a1.5 1.5 0 01-1.5 1.5H11"/></svg>',
@@ -466,6 +468,89 @@
     }
   }
 
+  // ---- Getting Started screen (native, from Backend.get_guide) -----------
+  let guideData = null;
+  let guideTrack = null;
+  function buildGuideScreen() {
+    const el = document.createElement("div");
+    el.className = "guide-screen";
+    el.id = "guideScreen";
+    el.innerHTML = `
+      <div class="guide-head">
+        <div><div class="guide-title">Getting Started</div><div class="guide-sub" id="guideSub"></div></div>
+        <button class="btn-ghost" id="guideClose">Close</button>
+      </div>
+      <div class="guide-tabs" id="guideTabs"></div>
+      <div class="guide-body" id="guideBody">Loading…</div>`;
+    document.body.appendChild(el);
+    el.querySelector("#guideClose").addEventListener("click", () => el.classList.remove("show"));
+    el.addEventListener("click", (e) => {
+      const cp = e.target.closest(".gb-copy"); if (cp) return copyCode(cp);
+      const tab = e.target.closest("[data-track]"); if (tab) return setGuideTrack(tab.dataset.track);
+      const head = e.target.closest(".guide-sec-head"); if (head) head.parentElement.classList.toggle("open");
+    });
+  }
+  function openGuide() {
+    document.getElementById("guideScreen").classList.add("show");
+    if (guideData) return renderGuide();
+    if (backend && backend.get_guide) {
+      backend.get_guide(res => { try { guideData = JSON.parse(res); renderGuide(); } catch (e) { document.getElementById("guideBody").textContent = "Could not load the guide."; } });
+    } else {
+      document.getElementById("guideTabs").innerHTML = "";
+      document.getElementById("guideBody").innerHTML = `<div class="m-hint">The Getting Started guide loads inside the app.</div>`;
+    }
+  }
+  function setGuideTrack(id) { guideTrack = id; renderGuide(); document.getElementById("guideBody").scrollTop = 0; }
+  function renderGuide() {
+    const d = guideData;
+    document.getElementById("guideSub").textContent = d.subtitle || "";
+    if (!guideTrack) guideTrack = d.tracks[0].id;
+    document.getElementById("guideTabs").innerHTML = d.tracks.map(t =>
+      `<button class="guide-tab ${t.id === guideTrack ? "active" : ""}" data-track="${esc(t.id)}">${esc(t.label)}</button>`).join("");
+    const track = d.tracks.find(t => t.id === guideTrack) || d.tracks[0];
+    let html = `<div class="guide-intro">${d.intro.map(renderGuideBlock).join("")}</div>`;
+    if (track.blocks) html += `<div class="guide-track">${track.blocks.map(renderGuideBlock).join("")}</div>`;
+    if (track.sections) html += track.sections.map((s, i) => `
+      <div class="guide-sec ${i === 0 ? "open" : ""}">
+        <div class="guide-sec-head"><span>${esc(s.title)}</span><span class="guide-chev">${I.chevron}</span></div>
+        <div class="guide-sec-body">${s.blocks.map(renderGuideBlock).join("")}</div>
+      </div>`).join("");
+    document.getElementById("guideBody").innerHTML = html;
+  }
+  function renderGuideBlock(b) {
+    if (b.type === "p") return `<div class="gb-p">${guideText(b.text)}</div>`;
+    if (b.type === "h") return `<h4 class="gb-h">${esc(b.text)}</h4>`;
+    if (b.type === "warn") return `<div class="gb-callout warn">${I.warn}<div>${guideText(b.text)}</div></div>`;
+    if (b.type === "note") return `<div class="gb-callout note">${I.book}<div>${guideText(b.text)}</div></div>`;
+    if (b.type === "code") return `<div class="gb-code"><button class="gb-copy" title="Copy">${I.copy}</button><pre><code>${esc(b.code)}</code></pre></div>`;
+    return "";
+  }
+  function guideText(t) {
+    const lines = esc(t).split("\n");
+    if (lines.some(l => l.trim().startsWith("•"))) {
+      return "<ul class='gb-ul'>" + lines.map(l => l.trim().startsWith("•")
+        ? `<li>${l.trim().slice(1).trim()}</li>`
+        : (l.trim() ? `<li class="gb-noli">${l}</li>` : "")).join("") + "</ul>";
+    }
+    return lines.join("<br>");
+  }
+  function copyCode(btn) {
+    const code = btn.parentElement.querySelector("code");
+    copyText(code ? code.textContent : "");
+    const prev = btn.innerHTML;
+    btn.innerHTML = I.check;
+    btn.classList.add("copied");
+    setTimeout(() => { btn.innerHTML = prev; btn.classList.remove("copied"); }, 1200);
+  }
+  function copyText(text) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      document.execCommand("copy"); document.body.removeChild(ta);
+    } catch (e) { if (navigator.clipboard) navigator.clipboard.writeText(text); }
+  }
+
   function buildProgressBar() {
     const el = document.createElement("div");
     el.className = "dl-progress";
@@ -501,10 +586,14 @@
     buildModal();
     buildLogModal();
     buildSetupModal();
+    buildGuideScreen();
     buildProgressBar();
     document.getElementById("brandMark").innerHTML = I.spark;
     document.getElementById("sunIcon").innerHTML = I.sun;
     document.getElementById("moonIcon").innerHTML = I.moon;
+    const guideBtn = document.getElementById("guideBtn");
+    guideBtn.querySelector(".gb-icon").innerHTML = I.book;
+    guideBtn.addEventListener("click", openGuide);
     const setupBtn = document.getElementById("setupBtn");
     setupBtn.innerHTML = I.shield;
     setupBtn.addEventListener("click", openSetupModal);
