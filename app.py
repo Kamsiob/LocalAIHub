@@ -50,6 +50,7 @@ class Backend(QObject):
             "comfyui": self.comfyui,
         }
         self._last_failed: dict = {}   # for one-shot "stopped unexpectedly" alerts
+        self._ollama_updates: dict = {}   # model name -> last update-check result
 
     # --- state collection ----------------------------------------------------
     def _collect(self) -> dict:
@@ -84,6 +85,10 @@ class Backend(QObject):
                 models = [m.to_dict() for m in self.ollama.list_models()]
             except Exception:
                 models = []
+        # Attach the cached update-check result (checks happen only on demand,
+        # never on the periodic refresh — no unsolicited registry calls).
+        for m in models:
+            m["update"] = self._ollama_updates.get(m["name"])
         services["ollama"]["loaded"] = loaded
 
         # ComfyUI extras: models are a disk scan (shown even when stopped);
@@ -228,6 +233,35 @@ class Backend(QObject):
         threading.Thread(target=work, daemon=True).start()
 
     @Slot(str)
+    def check_ollama_update(self, name: str) -> None:
+        def work() -> None:
+            try:
+                st = self.ollama.check_update(name)
+                self._ollama_updates[name] = st
+                self.notify.emit(f"{name}: {st['detail']}")
+            except Exception as exc:  # noqa: BLE001
+                self.notify.emit(f"Check failed: {exc}")
+            self._emit_state()
+        threading.Thread(target=work, daemon=True).start()
+
+    @Slot()
+    def check_ollama_updates(self) -> None:
+        """Check every installed Ollama model for updates (used by Refresh)."""
+        def work() -> None:
+            try:
+                names = [m.name for m in self.ollama.list_models()]
+            except Exception:
+                names = []
+            for name in names:
+                try:
+                    self._ollama_updates[name] = self.ollama.check_update(name)
+                except Exception:
+                    pass
+            self.notify.emit("Checked models for updates")
+            self._emit_state()
+        threading.Thread(target=work, daemon=True).start()
+
+    @Slot(str)
     def pull_model(self, name: str) -> None:
         """Pull/update a model via the real Ollama API, reporting progress."""
         def work() -> None:
@@ -245,6 +279,7 @@ class Backend(QObject):
                 self.notify.emit(f"Updating {name}…")
                 self.ollama.pull_model(name, progress_cb=cb)
                 self.notify.emit(f"{name} is up to date")
+                self._ollama_updates[name] = {"available": False, "detail": "Up to date"}
             except Exception as exc:  # noqa: BLE001
                 self.notify.emit(f"Update failed for {name}: {exc}")
             self.state_changed.emit(json.dumps(self._collect()))

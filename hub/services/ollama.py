@@ -8,11 +8,14 @@ Uses the REST API on 127.0.0.1:11434 (stdlib only, no `ollama` python dep):
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Callable, Iterable, Optional
+from typing import Callable, Optional
+
+OLLAMA_REGISTRY = "https://registry.ollama.ai/v2"
 
 from .base import Service
 
@@ -98,6 +101,46 @@ class OllamaService(Service):
             )
         models.sort(key=lambda x: x.name)
         return models
+
+    def check_update(self, name: str) -> dict:
+        """Is a newer version of this model available in the Ollama registry?
+
+        Compares the local manifest digest (from /api/tags) with the sha256 of
+        the remote manifest. Returns {available, current, latest, detail};
+        available is None when it can't be determined (e.g. a local-only model).
+        """
+        try:
+            data = self._get("/api/tags")
+        except Exception as exc:  # noqa: BLE001
+            return {"available": None, "detail": f"error: {exc}"}
+        local = ""
+        for m in data.get("models", []):
+            if m.get("name") == name:
+                local = (m.get("digest") or "").split(":")[-1].lower()
+                break
+        if not local:
+            return {"available": None, "detail": "not installed"}
+
+        repo, tag = name.rsplit(":", 1) if ":" in name else (name, "latest")
+        if "/" not in repo:
+            repo = "library/" + repo
+        url = f"{OLLAMA_REGISTRY}/{repo}/manifests/{tag}"
+        req = urllib.request.Request(
+            url, headers={"Accept": "application/vnd.docker.distribution.manifest.v2+json"})
+        try:
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                body = resp.read()
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                return {"available": None, "detail": "not in registry (local-only model)"}
+            return {"available": None, "detail": f"registry error {exc.code}"}
+        except Exception as exc:  # noqa: BLE001
+            return {"available": None, "detail": f"error: {exc}"}
+
+        remote = hashlib.sha256(body).hexdigest().lower()
+        available = remote != local
+        return {"available": available, "current": local[:12], "latest": remote[:12],
+                "detail": "Update available" if available else "Up to date"}
 
     def loaded_model(self) -> Optional[str]:
         """Name of the model currently loaded in memory, if any (first one)."""

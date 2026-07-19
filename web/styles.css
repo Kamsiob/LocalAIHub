@@ -302,6 +302,9 @@ body {
   background: linear-gradient(135deg, #ff77b0, #ff3d86); }
 .btn-sm.accent:hover { filter: brightness(1.06);
   background: linear-gradient(135deg, #ff77b0, #ff3d86); }
+/* Ollama's Update button uses the Ollama (violet) accent, not the ComfyUI pink */
+.card[data-svc="ollama"] .btn-sm.accent { background: linear-gradient(135deg, #8a6bff, #6d4bff); }
+.card[data-svc="ollama"] .btn-sm.accent:hover { background: linear-gradient(135deg, #8a6bff, #6d4bff); }
 .cu-uptodate { font-size: 12px; color: var(--ok); font-weight: 600;
   display: inline-flex; align-items: center; gap: 6px; flex: none; }
 .cu-uptodate::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }

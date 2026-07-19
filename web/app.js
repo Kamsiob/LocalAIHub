@@ -49,10 +49,10 @@
     comfyui:   { active: true,  serving: true,  generating: false },
   };
   const SAMPLE_MODELS = [
-    { name: "llama3.2:3b", size_human: "2.0 GB", loaded: true,  vram_human: "3.4 GB" },
-    { name: "mistral:7b",  size_human: "4.1 GB", loaded: false, vram_human: "" },
-    { name: "phi3:mini",   size_human: "2.2 GB", loaded: false, vram_human: "" },
-    { name: "gemma2:2b",   size_human: "1.6 GB", loaded: false, vram_human: "" },
+    { name: "llama3.2:3b", size_human: "2.0 GB", loaded: true,  vram_human: "3.4 GB", update: { available: false, detail: "Up to date" } },
+    { name: "mistral:7b",  size_human: "4.1 GB", loaded: false, vram_human: "", update: { available: true, detail: "Update available" } },
+    { name: "phi3:mini",   size_human: "2.2 GB", loaded: false, vram_human: "", update: null },
+    { name: "gemma2:2b",   size_human: "1.6 GB", loaded: false, vram_human: "", update: { available: false, detail: "Up to date" } },
   ];
   const SAMPLE_COMFY = [
     { category_label: "Diffusion models", name: "flux1-dev-Q8_0.gguf",       size_human: "12.5 GB", format: "GGUF",        source: "huggingface", update: { available: true,  detail: "Update available" } },
@@ -108,12 +108,27 @@
 
       if (meta.hasModels) {
         const wrap = card.querySelector(".models");
-        if (wrap) wrap.style.maxHeight = state.expanded[svc] ? wrap.scrollHeight + "px" : "0";
+        // Set the height instantly (no transition) on every render so a data
+        // refresh never re-animates an already-open list into a flicker.
+        if (wrap) wrap.style.maxHeight = state.expanded[svc] ? "none" : "0";
       }
     }
   }
 
   function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+  // Ollama update control: Update only when one is available, else Up to date;
+  // Check when we haven't looked yet (or couldn't determine).
+  function ollamaAction(m) {
+    const nm = esc(m.name);
+    if (m.update && m.update.available === true) {
+      return `<button class="btn-sm accent" data-act="update" data-model="${nm}">Update</button>`;
+    }
+    if (m.update && m.update.available === false) {
+      return `<span class="cu-uptodate" title="${esc((m.update && m.update.detail) || "")}">Up to date</span>`;
+    }
+    return `<button class="btn-sm" data-act="ocheck" data-model="${nm}" title="${esc((m.update && m.update.detail) || "Check the registry for an update")}">Check</button>`;
+  }
 
   function modelsMarkup(svc) {
     return svc === "comfyui" ? comfyModelsMarkup() : ollamaModelsMarkup();
@@ -127,7 +142,7 @@
         <span class="model-name">${esc(m.name)}</span>
         <span class="size">${esc(m.size_human || "")}</span>
         <span class="badge ${m.loaded ? "loaded" : ""}"><span class="b-dot"></span>${m.loaded ? "In memory" : "On disk"}</span>
-        <button class="btn-sm" data-act="update" data-model="${esc(m.name)}">Update</button>
+        ${ollamaAction(m)}
       </div>`).join("") : `<div class="model"><span class="model-name" style="color:var(--text-faint)">No models installed</span></div>`;
     return `
       <div class="models">
@@ -514,9 +529,13 @@
   function onRescan() {
     const b = document.getElementById("rescanBtn");
     if (b) { b.classList.add("spinning"); setTimeout(() => b.classList.remove("spinning"), 900); }
-    toast("Rescanning for models…");
-    if (backend && backend.request_refresh) backend.request_refresh();
-    else render();
+    toast("Rescanning + checking for updates…");
+    if (backend) {
+      if (backend.request_refresh) backend.request_refresh();
+      if (backend.check_ollama_updates) backend.check_ollama_updates();   // check every model
+    } else {
+      render();
+    }
   }
 
   function wire() {
@@ -544,6 +563,7 @@
       if (act === "toggle") onToggle(svc);
       else if (act === "expand") onExpand(svc);
       else if (act === "update") onUpdate(el.dataset.model);
+      else if (act === "ocheck") { if (backend && backend.check_ollama_update) { toast("Checking for update…"); backend.check_ollama_update(el.dataset.model); } }
       else if (act === "csource") openSourceModal(el.dataset.path, el.dataset.name);
       else if (act === "ccheck") onComfyCheck(el.dataset.path);
       else if (act === "cupdate") onComfyUpdate(el.dataset.path);
@@ -559,8 +579,14 @@
   }
 
   // ---- data intake from backend ------------------------------------------
+  let lastPayloadKey = "";
   function applyState(payload) {
-    // payload: { services: {svc:{active,serving,loaded}}, models: [...] }
+    // Skip the re-render entirely when nothing changed — the periodic refresh
+    // fires every few seconds, and re-rendering unchanged data is what caused
+    // the open model list to flicker.
+    const key = JSON.stringify(payload);
+    if (key === lastPayloadKey) return;
+    lastPayloadKey = key;
     if (payload.services) state.services = payload.services;
     if (payload.models) state.models = payload.models;
     if (payload.comfyui_models) state.comfyModels = payload.comfyui_models;
