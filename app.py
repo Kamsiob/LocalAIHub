@@ -38,6 +38,7 @@ class Backend(QObject):
     state_changed = Signal(str)   # JSON: {services:{...}, models:[...]}
     notify = Signal(str)
     setup_result = Signal(str)    # JSON of a fresh setup-check run (after a fix)
+    download_progress = Signal(str)  # JSON: {active, label, fraction, stage}
 
     def __init__(self) -> None:
         super().__init__()
@@ -179,16 +180,12 @@ class Backend(QObject):
     @Slot(str)
     def comfy_update(self, path: str) -> None:
         def work() -> None:
-            self.notify.emit(f"Updating {Path(path).name}…")
-            last = [-1]
+            label = f"Updating {Path(path).name}"
 
             def cb(stage: str, frac: float) -> None:
-                pct = int(frac * 100)
-                if pct >= last[0] + 20 or stage in ("starting", "verifying"):
-                    last[0] = pct
-                    self.notify.emit(f"{Path(path).name}: {stage} {pct}%" if stage == "downloading"
-                                     else f"{Path(path).name}: {stage}")
+                self._progress(True, label, frac, stage)
 
+            self._progress(True, label, 0.0, "starting")
             try:
                 res = comfy_models.update_model(path, progress_cb=cb)
                 self.notify.emit(res.get("reason", "done"))
@@ -196,8 +193,14 @@ class Backend(QObject):
                     comfy_models.set_source(path, {"last_check": {"available": False, "detail": "Up to date"}})
             except Exception as exc:  # noqa: BLE001
                 self.notify.emit(f"Update failed: {exc}")
+            finally:
+                self._progress(False, "", 1.0, "done")
             self._emit_state()
         threading.Thread(target=work, daemon=True).start()
+
+    def _progress(self, active: bool, label: str, fraction: float, stage: str) -> None:
+        self.download_progress.emit(json.dumps(
+            {"active": active, "label": label, "fraction": fraction, "stage": stage}))
 
     def _refresh_async(self) -> None:
         def work() -> None:
@@ -265,23 +268,20 @@ class Backend(QObject):
     def pull_model(self, name: str) -> None:
         """Pull/update a model via the real Ollama API, reporting progress."""
         def work() -> None:
-            last = [-1]
+            label = f"Updating {name}"
 
             def cb(status: str, frac: float) -> None:
-                pct = int(frac * 100)
-                # Throttle: only surface at ~20% steps or on named phases.
-                if pct >= last[0] + 20 or status in ("pulling manifest", "verifying sha256 digest", "success"):
-                    last[0] = pct
-                    msg = f"{name}: {status}" + (f" {pct}%" if 0 < pct < 100 and "pulling" in status else "")
-                    self.notify.emit(msg)
+                self._progress(True, label, frac, status)
 
+            self._progress(True, label, 0.0, "starting")
             try:
-                self.notify.emit(f"Updating {name}…")
                 self.ollama.pull_model(name, progress_cb=cb)
                 self.notify.emit(f"{name} is up to date")
                 self._ollama_updates[name] = {"available": False, "detail": "Up to date"}
             except Exception as exc:  # noqa: BLE001
                 self.notify.emit(f"Update failed for {name}: {exc}")
+            finally:
+                self._progress(False, "", 1.0, "done")
             self.state_changed.emit(json.dumps(self._collect()))
 
         threading.Thread(target=work, daemon=True).start()
@@ -306,38 +306,10 @@ class Backend(QObject):
         except Exception as exc:  # noqa: BLE001
             return f"(could not read log: {exc})"
 
-    @Slot(str, result=str)
-    def comfy_analyze_install(self, link: str) -> str:
-        try:
-            return json.dumps(comfy_models.analyze_install(link))
-        except Exception as exc:  # noqa: BLE001
-            return json.dumps({"ok": False, "error": str(exc)})
-
-    @Slot(str, str)
-    def comfy_install(self, link: str, category: str) -> None:
-        def work() -> None:
-            self.notify.emit("Downloading model…")
-            last = [-1]
-
-            def cb(stage: str, frac: float) -> None:
-                pct = int(frac * 100)
-                if pct >= last[0] + 20 or stage in ("starting", "verifying"):
-                    last[0] = pct
-                    self.notify.emit(f"Install: {stage} {pct}%" if stage == "downloading"
-                                     else f"Install: {stage}")
-
-            try:
-                res = comfy_models.install_model(link, category, progress_cb=cb)
-                if res.get("ok"):
-                    self.notify.emit(f"Installed {res['filename']} → {res['category']}")
-                    if res.get("warning"):
-                        self.notify.emit("⚠ " + res["warning"])
-                else:
-                    self.notify.emit(f"Install failed: {res.get('error')}")
-            except Exception as exc:  # noqa: BLE001
-                self.notify.emit(f"Install failed: {exc}")
-            self._emit_state()
-        threading.Thread(target=work, daemon=True).start()
+    @Slot(str)
+    def set_civitai_key(self, key: str) -> None:
+        config.set_("civitai_api_key", key.strip())
+        self.notify.emit("Civitai API key saved" if key.strip() else "Civitai API key cleared")
 
     @Slot(result=str)
     def run_setup_check(self) -> str:

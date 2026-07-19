@@ -84,8 +84,13 @@ entry that runs the app through the venv — double-clicking just works.
 Local AI Hub is **free and open source** under the [MIT License](LICENSE) — use it, fork it,
 modify it, redistribute it. The only condition is keeping the copyright notice with copies.
 
+## 💬 Contact
+
+Questions or suggestions? Email **[hello@kamsiob.com](mailto:hello@kamsiob.com)** —
+or open an issue on [GitHub](https://github.com/Kamsiob/).
+
 ---
 
 <p align="center">
-  Made by <b>Kamsiob</b> · <a href="https://www.youtube.com/@Kamsiob">Kamsiob&nbsp;on&nbsp;Linux (@Kamsiob) on YouTube</a>
+  Made by <b>Kamsiob</b> · <a href="https://github.com/Kamsiob/">GitHub</a> · <a href="https://www.youtube.com/@Kamsiob">Kamsiob&nbsp;on&nbsp;Linux (@Kamsiob) on YouTube</a> · <a href="mailto:hello@kamsiob.com">hello@kamsiob.com</a>
 </p>

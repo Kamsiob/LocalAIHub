@@ -159,12 +159,11 @@
     const models = state.comfyModels || [];
     const topbar = `<div class="models-topbar">
       <span class="models-topbar-label">Installed models${models.length ? " · " + models.length : ""}</span>
-      <button class="btn-sm" data-act="cinstall">${I.plus}Install a model</button>
     </div>`;
     if (!models.length) {
       return `<div class="models"><div class="models-inner">
         ${topbar}
-        <div class="model"><span class="model-name" style="color:var(--text-faint)">No model files yet — use “Install a model”, or drop files into ComfyUI/models</span></div>
+        <div class="model"><span class="model-name" style="color:var(--text-faint)">No model files found under ComfyUI/models</span></div>
       </div></div>`;
     }
     const order = ["Diffusion models", "Checkpoints", "Text encoders", "VAE", "LoRAs"];
@@ -315,6 +314,11 @@
           <div class="m-row"><input id="smUrl" placeholder="https://…/model.safetensors" /><button class="btn-sm" id="smUrlBtn">Link</button></div>
           <div class="m-hint">Re-downloads from this URL when it changes.</div>
         </div>
+        <div class="method">
+          <div class="m-title">Civitai API key <span style="font-weight:400;color:var(--text-faint)">(optional)</span></div>
+          <div class="m-row"><input id="smKey" type="password" placeholder="for gated Civitai downloads" /><button class="btn-sm" id="smKeyBtn">Save</button></div>
+          <div class="m-hint">Some Civitai downloads require a key. Get one at civitai.com → Account → API Keys.</div>
+        </div>
         <div class="modal-foot"><button class="btn-ghost" id="smClose">Close</button></div>
       </div>`;
     document.body.appendChild(bd);
@@ -334,6 +338,11 @@
       if (v && backend && backend.comfy_set_url) { toast("Linking URL…"); backend.comfy_set_url(modalPath, v); }
       closeModal();
     });
+    bd.querySelector("#smKeyBtn").addEventListener("click", () => {
+      const v = bd.querySelector("#smKey").value;
+      if (backend && backend.set_civitai_key) backend.set_civitai_key(v);
+      bd.querySelector("#smKey").value = "";
+    });
   }
   function openSourceModal(path, name) {
     modalPath = path;
@@ -347,87 +356,6 @@
     const bd = document.getElementById("sourceModal");
     if (bd) bd.classList.remove("show");
     modalPath = null;
-  }
-
-  const COMFY_FOLDERS = [
-    ["diffusion_models", "Diffusion models"], ["checkpoints", "Checkpoints"],
-    ["text_encoders", "Text encoders"], ["vae", "VAE"], ["loras", "LoRAs"],
-  ];
-  function buildInstallModal() {
-    const bd = document.createElement("div");
-    bd.className = "modal-backdrop";
-    bd.id = "installModal";
-    const opts = COMFY_FOLDERS.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
-    bd.innerHTML = `
-      <div class="modal">
-        <h3>Install a ComfyUI model</h3>
-        <div class="sub">Paste a Hugging Face, Civitai, or direct link. The app downloads it, verifies it, and files it in the right folder.</div>
-        <div class="m-row"><input id="inLink" placeholder="https://huggingface.co/…  or  https://civitai.com/models/…" /><button class="btn-sm" id="inAnalyze">Analyze</button></div>
-        <div class="m-hint" id="inMsg"></div>
-        <div id="inDetails" style="display:none">
-          <div class="install-info" id="inInfo"></div>
-          <div class="m-warn" id="inWarn" style="display:none"></div>
-          <div class="m-title" style="margin-top:14px">Destination folder</div>
-          <div class="m-row"><select id="inFolder" class="select">${opts}</select></div>
-          <div class="m-hint" id="inFolderHint"></div>
-        </div>
-        <div class="modal-foot" style="gap:10px">
-          <button class="btn-ghost" id="inClose">Cancel</button>
-          <button class="btn-sm accent" id="inGo" style="display:none">Download &amp; install</button>
-        </div>
-      </div>`;
-    document.body.appendChild(bd);
-    const close = () => { bd.classList.remove("show"); };
-    bd.addEventListener("click", e => { if (e.target === bd) close(); });
-    bd.querySelector("#inClose").addEventListener("click", close);
-    bd.querySelector("#inAnalyze").addEventListener("click", () => {
-      const link = bd.querySelector("#inLink").value.trim();
-      const msg = bd.querySelector("#inMsg");
-      if (!link) { msg.textContent = "Paste a link first."; return; }
-      if (!backend || !backend.comfy_analyze_install) { msg.textContent = "Available when running in the app."; return; }
-      msg.textContent = "Analyzing…";
-      bd.querySelector("#inDetails").style.display = "none";
-      bd.querySelector("#inGo").style.display = "none";
-      backend.comfy_analyze_install(link, res => {
-        let r; try { r = JSON.parse(res); } catch (e) { r = { ok: false, error: "bad response" }; }
-        if (!r.ok) { msg.textContent = "Couldn't read that link: " + (r.error || "unknown"); return; }
-        msg.textContent = "";
-        bd.querySelector("#inInfo").innerHTML =
-          `<div class="ii-row"><span>File</span><b>${esc(r.filename)}</b></div>` +
-          `<div class="ii-row"><span>Source</span><b>${esc(r.source)}${r.size_human ? " · " + esc(r.size_human) : ""}</b></div>`;
-        const warn = bd.querySelector("#inWarn");
-        if (r.gguf_warning) {
-          warn.innerHTML = I.warn + "<span>" + esc(r.gguf_warning) + "</span>";
-          warn.style.display = "flex";
-        } else {
-          warn.style.display = "none";
-        }
-        const sel = bd.querySelector("#inFolder");
-        const hint = bd.querySelector("#inFolderHint");
-        if (r.category) {
-          sel.value = r.category;
-          hint.textContent = "Suggested folder (" + r.category_reason + "). Change it if that's wrong.";
-        } else {
-          hint.textContent = "Couldn't determine the folder from the link — please choose one.";
-        }
-        bd.querySelector("#inDetails").style.display = "block";
-        bd.querySelector("#inGo").style.display = "inline-flex";
-      });
-    });
-    bd.querySelector("#inGo").addEventListener("click", () => {
-      const link = bd.querySelector("#inLink").value.trim();
-      const folder = bd.querySelector("#inFolder").value;
-      if (backend && backend.comfy_install) { toast("Downloading model…"); backend.comfy_install(link, folder); }
-      close();
-    });
-  }
-  function openInstallModal() {
-    const bd = document.getElementById("installModal");
-    bd.querySelector("#inLink").value = "";
-    bd.querySelector("#inMsg").textContent = "";
-    bd.querySelector("#inDetails").style.display = "none";
-    bd.querySelector("#inGo").style.display = "none";
-    bd.classList.add("show");
   }
 
   function buildSetupModal() {
@@ -538,11 +466,42 @@
     }
   }
 
+  function buildProgressBar() {
+    const el = document.createElement("div");
+    el.className = "dl-progress";
+    el.id = "dlProgress";
+    el.innerHTML = `<div class="dl-fill" id="dlFill"></div><div class="dl-label" id="dlLabel"></div>`;
+    document.body.appendChild(el);
+  }
+  let dlHideTimer = null;
+  function updateProgress(d) {
+    const el = document.getElementById("dlProgress");
+    const fill = document.getElementById("dlFill");
+    const label = document.getElementById("dlLabel");
+    if (!el) return;
+    if (!d.active) {
+      fill.style.width = "100%";
+      clearTimeout(dlHideTimer);
+      dlHideTimer = setTimeout(() => { el.classList.remove("show"); setTimeout(() => { fill.style.width = "0%"; }, 350); }, 500);
+      return;
+    }
+    clearTimeout(dlHideTimer);
+    el.classList.add("show");
+    const frac = d.fraction || 0;
+    const pct = Math.round(frac * 100);
+    fill.style.width = (frac > 0 ? pct : 4) + "%";
+    let txt = d.label || "Working";
+    if (frac > 0 && frac < 1) txt += ` · ${pct}%`;
+    else if (d.stage && d.stage !== "starting") txt += ` · ${d.stage}`;
+    else txt += " · starting…";
+    label.textContent = txt;
+  }
+
   function wire() {
     buildModal();
     buildLogModal();
-    buildInstallModal();
     buildSetupModal();
+    buildProgressBar();
     document.getElementById("brandMark").innerHTML = I.spark;
     document.getElementById("sunIcon").innerHTML = I.sun;
     document.getElementById("moonIcon").innerHTML = I.moon;
@@ -569,11 +528,13 @@
       else if (act === "cupdate") onComfyUpdate(el.dataset.path);
       else if (act === "open") openUrl(localServiceUrl(el.dataset.port));
       else if (act === "clog") openLogModal(el.dataset.svc);
-      else if (act === "cinstall") openInstallModal();
     });
 
     document.querySelectorAll(".browse-link").forEach(a => {
       a.innerHTML = `${I[a.dataset.icon]}<span>${a.textContent.trim()}</span>${I.ext}`;
+      a.addEventListener("click", (e) => { e.preventDefault(); openUrl(a.dataset.url); });
+    });
+    document.querySelectorAll(".foot-link").forEach(a => {
       a.addEventListener("click", (e) => { e.preventDefault(); openUrl(a.dataset.url); });
     });
   }
@@ -603,6 +564,9 @@
         backend = channel.objects.backend;
         if (backend.state_changed) backend.state_changed.connect((json) => applyState(JSON.parse(json)));
         if (backend.notify) backend.notify.connect((msg) => toast(msg));
+        if (backend.download_progress) backend.download_progress.connect((json) => {
+          try { updateProgress(JSON.parse(json)); } catch (e) {}
+        });
         if (backend.setup_result) backend.setup_result.connect((json) => {
           if (document.getElementById("setupModal").classList.contains("show")) {
             try { renderSetup(JSON.parse(json)); } catch (e) {}

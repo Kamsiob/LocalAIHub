@@ -286,6 +286,12 @@ body {
 .browse-link .lg { color: var(--text-faint); }
 
 .footer-note { text-align: center; margin-top: 26px; font-size: 12px; color: var(--text-faint); }
+.footer-links { text-align: center; margin-top: 8px; font-size: 12.5px;
+  display: flex; align-items: center; justify-content: center; gap: 10px; }
+.foot-link { color: var(--text-muted); text-decoration: none; cursor: pointer; font-weight: 500;
+  transition: color var(--dur) var(--ease); }
+.foot-link:hover { color: var(--text); }
+.foot-sep { color: var(--text-faint); }
 
 /* toast */
 .toast {
@@ -296,6 +302,23 @@ body {
   transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease); z-index: 50;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* top download progress bar */
+.dl-progress {
+  position: fixed; top: 0; left: 0; right: 0; height: 36px; z-index: 200;
+  display: flex; align-items: center; overflow: hidden;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-100%); transition: transform var(--dur) var(--ease);
+}
+.dl-progress.show { transform: translateY(0); }
+.dl-fill {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+  background: linear-gradient(90deg, #7c5cff, #2f9bff);
+  opacity: .3; transition: width .3s var(--ease);
+}
+.dl-label { position: relative; z-index: 1; padding: 0 16px; font-size: 12.5px;
+  font-weight: 600; color: var(--text); }
 
 /* update controls on ComfyUI model rows */
 .btn-sm.accent { border-color: transparent; color: #fff;

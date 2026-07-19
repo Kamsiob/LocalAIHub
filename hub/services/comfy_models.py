@@ -278,22 +278,37 @@ def check_update(path) -> dict:
 
         elif kind == "civitai":
             cv = src["civitai"]
+            local_name = Path(path).name
+            local_sha = (src.get("sha256") or "").lower()
             model = _get_json(CIVITAI_MODEL.format(id=cv["modelId"]), _civitai_headers())
-            versions = model.get("modelVersions", [])
-            if not versions:
-                base["error"] = "No versions returned"
+            versions = model.get("modelVersions", [])  # newest first
+            base["current"] = cv.get("versionName", "")
+            # Civitai bundles unrelated files (VAE, CLIP, GGUF quants…) as separate
+            # "versions" of one model, so "newest version differs" is a false
+            # positive. Only treat it as an update if a NEWER version re-uploads a
+            # file with THIS exact filename and a different hash.
+            match_file = match_ver = None
+            for v in versions:
+                for f in v.get("files", []):
+                    if f.get("name") == local_name:
+                        match_file, match_ver = f, v
+                        break
+                if match_file:
+                    break
+            if not match_file:
+                base["available"] = False
+                base["detail"] = "Up to date (no newer version of this file)"
                 return base
-            latest = versions[0]
-            base["current"] = cv.get("versionName", str(cv.get("modelVersionId")))
-            base["latest"] = latest.get("name", str(latest.get("id")))
-            base["available"] = latest.get("id") != cv.get("modelVersionId")
-            files = latest.get("files", [])
-            primary = next((f for f in files if f.get("primary")), files[0] if files else None)
-            if primary:
-                base["download_url"] = primary.get("downloadUrl")
-                base["expected_sha"] = (primary.get("hashes", {}) or {}).get("SHA256", "").lower() or None
-                base["expected_size"] = int(primary.get("sizeKB", 0) * 1024) or None
-            base["detail"] = "Update available" if base["available"] else "Up to date"
+            remote_sha = (match_file.get("hashes", {}) or {}).get("SHA256", "").lower()
+            base["latest"] = match_ver.get("name", "")
+            base["available"] = bool(remote_sha and local_sha and remote_sha != local_sha)
+            if base["available"]:
+                base["download_url"] = match_file.get("downloadUrl")
+                base["expected_sha"] = remote_sha or None
+                base["expected_size"] = int(match_file.get("sizeKB", 0) * 1024) or None
+                base["detail"] = f"Update available ({match_ver.get('name', '')})"
+            else:
+                base["detail"] = "Up to date"
 
         elif kind == "url":
             u = src["url"]
@@ -323,19 +338,24 @@ def check_update(path) -> dict:
 def _download(url: str, dest: Path, headers: Optional[dict],
               progress_cb: Optional[Callable[[str, float], None]]) -> int:
     tmp = dest.with_suffix(dest.suffix + ".laih-download")
-    with _request(url, "GET", headers, timeout=60) as r:
-        total = int(r.headers.get("Content-Length") or 0)
-        done = 0
-        with tmp.open("wb") as fh:
-            while True:
-                chunk = r.read(8 * 1024 * 1024)
-                if not chunk:
-                    break
-                fh.write(chunk)
-                done += len(chunk)
-                if progress_cb and total:
-                    progress_cb("downloading", done / total)
-    return tmp, done
+    try:
+        with _request(url, "GET", headers, timeout=60) as r:
+            total = int(r.headers.get("Content-Length") or 0)
+            done = 0
+            with tmp.open("wb") as fh:
+                while True:
+                    chunk = r.read(8 * 1024 * 1024)
+                    if not chunk:
+                        break
+                    fh.write(chunk)
+                    done += len(chunk)
+                    if progress_cb and total:
+                        progress_cb("downloading", done / total)
+        return tmp, done
+    except BaseException:
+        # Never leave a partial *.laih-download behind on failure/cancel.
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def update_model(path, progress_cb: Optional[Callable[[str, float], None]] = None) -> dict:
@@ -353,7 +373,15 @@ def update_model(path, progress_cb: Optional[Callable[[str, float], None]] = Non
     headers = _civitai_headers() if st["source"] == "civitai" else None
     if progress_cb:
         progress_cb("starting", 0.0)
-    tmp, size = _download(url, dest, headers, progress_cb)
+    try:
+        tmp, size = _download(url, dest, headers, progress_cb)
+    except urllib.error.HTTPError as exc:
+        if exc.code in (401, 403) and st["source"] == "civitai":
+            return {"updated": False, "reason": "Civitai needs an API key for this download — "
+                    "add one under the source dialog, then try again."}
+        return {"updated": False, "reason": f"Download failed ({exc.code})"}
+    except Exception as exc:  # noqa: BLE001
+        return {"updated": False, "reason": f"Download failed: {exc}"}
 
     # verify before replacing the real file
     if st.get("expected_size") and size != st["expected_size"]:
