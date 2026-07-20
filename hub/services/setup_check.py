@@ -92,6 +92,32 @@ def _result(cid, label, status, detail, fix=None):
     return {"id": cid, "label": label, "status": status, "detail": detail, "fix": fix}
 
 
+def _systemd_seconds(val: str):
+    """Parse a systemd time span ('600', '600s', '10min', '5m') to seconds.
+
+    Returns None if unparseable. A bare number is seconds (systemd's default for
+    TimeoutStartSec), which is why `.isdigit()` alone would wrongly reject valid
+    suffixed values like '10min'.
+    """
+    import re
+    val = (val or "").strip()
+    if not val:
+        return None
+    if val.isdigit():
+        return int(val)
+    units = {"us": 1e-6, "ms": 1e-3, "s": 1, "sec": 1, "second": 1, "seconds": 1,
+             "m": 60, "min": 60, "minute": 60, "minutes": 60,
+             "h": 3600, "hr": 3600, "hour": 3600, "hours": 3600,
+             "d": 86400, "day": 86400, "days": 86400, "w": 604800, "week": 604800, "weeks": 604800}
+    total, matched = 0.0, False
+    for num, unit in re.findall(r"(\d+(?:\.\d+)?)\s*([a-z]+)", val.lower()):
+        if unit not in units:
+            return None
+        total += float(num) * units[unit]
+        matched = True
+    return int(total) if matched else None
+
+
 def _ollama_env() -> str:
     for args in (["--user", "show", "ollama", "-p", "Environment"],
                  ["show", "ollama", "-p", "Environment"]):
@@ -139,11 +165,12 @@ def check_openwebui() -> list:
         checks.append(_result("owui_volume", "Open WebUI volume", "pass",
                               f"Uses named volume '{vol_target}'."))
 
-    timeout = next((int(l.split("=", 1)[1].strip()) for l in text.splitlines()
-                    if l.strip().startswith("TimeoutStartSec=") and l.split("=", 1)[1].strip().isdigit()), 0)
+    raw_timeout = next((l.split("=", 1)[1].strip() for l in text.splitlines()
+                        if l.strip().startswith("TimeoutStartSec=")), "")
+    timeout = _systemd_seconds(raw_timeout) or 0
     if timeout >= 300:
         checks.append(_result("owui_timeout", "Open WebUI startup timeout", "pass",
-                              f"TimeoutStartSec={timeout} (enough for the first image pull)."))
+                              f"TimeoutStartSec={raw_timeout} (enough for the first image pull)."))
     else:
         checks.append(_result("owui_timeout", "Open WebUI startup timeout", "fail",
                               "TimeoutStartSec is missing/too low. The first run pulls a large image and can "
@@ -217,12 +244,17 @@ def apply_fix(fix_id: str) -> dict:
 
         if fix_id == "ollama_env":
             text = OLLAMA_USER_UNIT.read_text()
+            # Match the exact NAME=1 token (e.g. OLLAMA_IGPU_ENABLE=1) so a
+            # pre-existing NAME=0 still counts as missing and gets corrected.
             add = [v for v in ('Environment="OLLAMA_IGPU_ENABLE=1"', 'Environment="OLLAMA_VULKAN=1"')
-                   if v.split('"')[1].split("=")[0] not in text]
-            if add and "ExecStart=" in text:
-                text = text.replace("ExecStart=", "\n".join(add) + "\nExecStart=", 1)
-                OLLAMA_USER_UNIT.write_text(text)
-                subprocess.run(["systemctl", "--user", "daemon-reload"], timeout=15, env=host_env())
+                   if v.split('"')[1] not in text]
+            if not add:
+                return {"ok": True, "message": "The iGPU env vars are already set."}
+            if "ExecStart=" not in text:
+                return {"ok": False, "message": "No ExecStart= line in the Ollama unit to anchor the env vars."}
+            text = text.replace("ExecStart=", "\n".join(add) + "\nExecStart=", 1)
+            OLLAMA_USER_UNIT.write_text(text)
+            subprocess.run(["systemctl", "--user", "daemon-reload"], timeout=15, env=host_env())
             return {"ok": True, "message": "Added the iGPU env vars. Restart Ollama to apply."}
 
         return {"ok": False, "message": f"No automatic fix for '{fix_id}'."}

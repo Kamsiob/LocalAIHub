@@ -323,6 +323,9 @@ def check_update(path) -> dict:
             base["available"] = bool(changed)
             base["download_url"] = u["url"]
             base["expected_size"] = size
+            # Fresh server headers, so update_model can record them and not report
+            # "Update available" forever after a successful update.
+            base["url_head"] = {"url": u["url"], "etag": etag, "size": size, "last_modified": last_mod}
             base["detail"] = "Update available" if changed else "Up to date"
         else:
             base["detail"] = "Unknown source type"
@@ -403,7 +406,9 @@ def update_model(path, progress_cb: Optional[Callable[[str, float], None]] = Non
     if new_sha:
         updates["sha256"] = new_sha
     if st["source"] == "url":
-        updates["url"] = {**(get_source(path) or {}).get("url", {})}
+        # Record the freshly-downloaded version's headers (captured during the
+        # check) so the next check compares against the new file, not the old one.
+        updates["url"] = st.get("url_head") or {**(get_source(path) or {}).get("url", {})}
     set_source(path, updates or {"sha256": st.get("expected_sha")})
     return {"updated": True, "reason": f"Updated to {st.get('latest') or 'latest'}", "sha256": new_sha}
 

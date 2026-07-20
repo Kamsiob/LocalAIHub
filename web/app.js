@@ -123,7 +123,7 @@
             ${(meta.webPort && s.serving) ? `<button class="btn-open" data-act="open" data-port="${meta.webPort}" title="Open http://127.0.0.1:${meta.webPort}">Open ${I.external2}</button>` : ""}
             ${(meta.hasModels && !absent) ? `<div class="chevron" data-act="expand">${I.chevron}</div>` : ""}
             ${absent
-              ? `<div class="toggle disabled" role="switch" aria-checked="false" aria-disabled="true" title="${meta.name} isn't installed on this machine"><span class="knob"></span></div>`
+              ? `<div class="toggle disabled" data-act="toggle" role="switch" aria-checked="false" aria-disabled="true" title="${meta.name} isn't installed on this machine"><span class="knob"></span></div>`
               : `<div class="toggle" data-act="toggle" role="switch" aria-checked="${on}"><span class="knob"></span></div>`}
           </div>
         </div>
@@ -281,6 +281,9 @@
     toast(`${SVC_META[svc].name}: ${turnOn ? "starting…" : "stopping…"}`);
     if (backend && backend.set_service) {
       backend.set_service(svc, turnOn);      // real start/stop (async, status refresh follows)
+      // Safety net: if the start/stop no-ops or fails, the pushed state can be
+      // identical and dedup skips the re-render, so clear the busy state itself.
+      if (tog) setTimeout(() => tog.classList.remove("busy"), 11000);
     } else {
       // standalone mockup only (no backend at all)
       state.services[svc] = { active: turnOn, serving: turnOn, loaded: turnOn && svc === "ollama" ? "llama3.2:3b" : undefined };
@@ -306,12 +309,12 @@
 
   // ---- ComfyUI model update actions --------------------------------------
   function onComfyCheck(path) {
-    if (!path) return;
+    if (!path) { toast("This model has no file path to check"); return; }
     if (backend && backend.comfy_check) { toast("Checking for update…"); backend.comfy_check(path); }
     else toast("Not connected to backend");
   }
   function onComfyUpdate(path) {
-    if (!path) return;
+    if (!path) { toast("This model has no file path to update"); return; }
     if (backend && backend.comfy_update) { toast("Starting update…"); backend.comfy_update(path); }
     else toast("Not connected to backend");
   }
@@ -436,15 +439,16 @@
         <div class="m-hint" style="margin-top:12px">These checks apply only to Bazzite / Fedora Atomic on an AMD Strix Halo (gfx1151) iGPU. This machine doesn't match, so they're skipped — they wouldn't apply here.</div>`;
       return;
     }
-    const rows = (data.checks || []).map(c => `
+    const checks = data.checks || [];
+    const rows = checks.map(c => `
       <div class="sc-row">
         <span class="sc-status ${c.status}">${SC_ICON[c.status] || ""}</span>
         <div class="sc-text"><div class="sc-label">${esc(c.label)}</div><div class="sc-detail">${esc(c.detail)}</div></div>
         ${c.fix ? `<button class="btn-sm" data-fix="${esc(c.fix)}">Fix</button>` : ""}
       </div>`).join("");
-    const pass = data.checks.filter(c => c.status === "pass").length;
+    const pass = checks.filter(c => c.status === "pass").length;
     body.innerHTML = `
-      <div class="sc-plat">${I.check2 || ""}<b>${esc(p.distro)}</b> · ${esc(p.gpu)} <span class="sc-summary">${pass}/${data.checks.length} OK</span></div>
+      <div class="sc-plat">${I.check || ""}<b>${esc(p.distro)}</b> · ${esc(p.gpu)} <span class="sc-summary">${pass}/${checks.length} OK</span></div>
       <div class="sc-list">${rows}</div>`;
   }
 
@@ -532,12 +536,18 @@
   function setGuideTrack(id) { guideTrack = id; renderGuide(); document.getElementById("guideBody").scrollTop = 0; }
   function renderGuide() {
     const d = guideData;
+    // Guard against a malformed-but-valid guide payload (no tracks/intro) so a
+    // cached re-open doesn't throw an uncaught TypeError and leave "Loading…".
+    if (!d || !Array.isArray(d.tracks) || !d.tracks.length) {
+      document.getElementById("guideBody").textContent = "Could not load the guide.";
+      return;
+    }
     document.getElementById("guideSub").textContent = d.subtitle || "";
     if (!guideTrack) guideTrack = d.tracks[0].id;
     document.getElementById("guideTabs").innerHTML = d.tracks.map(t =>
       `<button class="guide-tab ${t.id === guideTrack ? "active" : ""}" data-track="${esc(t.id)}">${esc(t.label)}</button>`).join("");
     const track = d.tracks.find(t => t.id === guideTrack) || d.tracks[0];
-    let html = `<div class="guide-intro">${d.intro.map(renderGuideBlock).join("")}</div>`;
+    let html = `<div class="guide-intro">${(d.intro || []).map(renderGuideBlock).join("")}</div>`;
     if (track.blocks) html += `<div class="guide-track">${track.blocks.map(renderGuideBlock).join("")}</div>`;
     if (track.sections) html += track.sections.map((s, i) => `
       <div class="guide-sec ${i === 0 ? "open" : ""}">
@@ -699,6 +709,15 @@
       else if (act === "cupdate") onComfyUpdate(el.dataset.path);
       else if (act === "open") openUrl(localServiceUrl(el.dataset.port));
       else if (act === "clog") openLogModal(el.dataset.svc);
+    });
+
+    // Escape closes the topmost open overlay/modal (Getting Started, About,
+    // Setup, Log, Source). Modals already close on backdrop click; the
+    // full-screen overlays have no "outside" to click, so Escape is their exit.
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      const open = document.querySelectorAll(".modal-backdrop.show, .guide-screen.show");
+      if (open.length) open[open.length - 1].classList.remove("show");
     });
 
     document.querySelectorAll(".browse-link").forEach(a => {

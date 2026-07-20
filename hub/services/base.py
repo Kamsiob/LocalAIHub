@@ -112,6 +112,8 @@ class Service:
         return run_systemctl("is-active", self.unit).stdout.strip() == "active"
 
     def sub_state(self) -> str:
+        if in_flatpak():
+            return self._raw_props().get("SubState", "")
         cp = run_systemctl("show", self.unit, "-p", "SubState", "--value")
         return cp.stdout.strip()
 

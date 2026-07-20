@@ -74,7 +74,7 @@ class Backend(QObject):
                                  "present": st.present}
             except Exception:
                 services[key] = {"active": False, "serving": False, "failed": False,
-                                 "present": True}
+                                 "present": True, "result": ""}
 
             # One-shot alert when a service transitions into the failed state.
             is_failed = services[key].get("failed")
@@ -232,8 +232,9 @@ class Backend(QObject):
             try:
                 ok = svc.start() if turn_on else svc.stop()
                 verb = "started" if turn_on else "stopped"
+                action = "start" if turn_on else "stop"
                 self.notify.emit(f"{svc.display_name} {verb}" if ok
-                                 else f"{svc.display_name} failed to {verb[:-4] or 'change'}")
+                                 else f"{svc.display_name} failed to {action}")
             except Exception as exc:  # noqa: BLE001
                 self.notify.emit(f"{svc.display_name}: {exc}")
             # Emit a few refreshes so the UI reflects starting -> running/stopped.

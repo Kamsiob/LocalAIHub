@@ -5,6 +5,28 @@ All notable changes to Local AI Hub are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Start/stop failures showed a garbled toast ("failed to sta" / "failed to sto")
+  instead of "failed to start" / "failed to stop".
+- ComfyUI models with a direct-URL source reported "Update available" forever
+  after a successful update — the recorded version headers weren't refreshed.
+- The Open WebUI startup-timeout check misread a valid `TimeoutStartSec` written
+  with a unit suffix (e.g. `10min`) as missing/too low.
+- The Ollama iGPU-env fix reported success without changing anything when the
+  variable was present but set to `0`.
+- A service toggle could stay dimmed and stuck if the start/stop no-oped and the
+  refreshed state was identical (the dedup skipped the re-render).
+- Malformed guide/setup data could throw an uncaught error and leave the panel on
+  "Loading…"; the Setup summary icon and count are now guarded too.
+
+### Added
+- Pressing Escape closes any open overlay or modal (Getting Started, About,
+  Setup, Log, Source).
+- Clicking a "Not installed" service's toggle now explains it with a toast
+  instead of doing nothing.
+
 ## [1.1.0] — 2026-07-20
 
 ### Changed
