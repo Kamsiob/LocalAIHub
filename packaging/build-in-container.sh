@@ -26,7 +26,7 @@ apt-get update -qq
 # python + build helpers; NSS/NSPR provide the .so files QtWebEngine dlopens at
 # runtime and that minimal target systems often lack — we bundle them.
 apt-get install -y -qq --no-install-recommends \
-  python3 python3-venv python3-pip \
+  python3 python3-venv python3-pip libpython3.10 \
   binutils file wget ca-certificates zsync \
   libnss3 libnspr4 >/dev/null
 echo "==> apt deps installed"
@@ -53,6 +53,25 @@ pyinstaller --noconfirm --clean --name "$NAME" --onedir --windowed \
   "$WORK/app.py"
 echo "==> pyinstaller onedir built"
 
+# PyInstaller under-collects the Qt runtime for this PySide6 wheel (it bundles the
+# Qt .so libraries but not the platform plugins, QtWebEngineProcess, resources,
+# locales or translations). Overlay the complete Qt tree straight from the wheel so
+# nothing is missing, and drop a qt.conf so Qt resolves plugins + WebEngine data
+# from the bundled prefix.
+SITE="$WORK/venv/lib/python3.10/site-packages"
+echo "==> overlaying full PySide6 Qt runtime (plugins/resources/translations/libexec)"
+cp -a "$SITE/PySide6/Qt/." "dist/$NAME/_internal/PySide6/Qt/"
+printf '[Paths]\nPrefix = _internal/PySide6/Qt\n' > "dist/$NAME/qt.conf"
+echo "==> Qt tree now has: $(find "dist/$NAME/_internal/PySide6/Qt/plugins/platforms" -name 'libq*.so' 2>/dev/null | wc -l) platform plugins, QtWebEngineProcess=$( [ -e "dist/$NAME/_internal/PySide6/Qt/libexec/QtWebEngineProcess" ] && echo yes || echo NO )"
+
+# Drop the bundled libstdc++/libgcc. They are older than a modern host's, and the
+# host's GPU drivers (loaded into our process for GL) link against whichever
+# libstdc++ is on LD_LIBRARY_PATH — an older bundled one lacks the newer GLIBCXX
+# the host driver needs, breaking rendering. The host copy (>= our ubuntu 22.04
+# build baseline) serves both the app and its drivers.
+find "dist/$NAME/_internal" \( -name 'libstdc++.so*' -o -name 'libgcc_s.so*' \) -delete
+echo "==> removed bundled libstdc++/libgcc (host copy is used instead)"
+
 # ---- 3. common staging dir (shared by tarball + AppImage) ------------------
 rm -rf "$STAGE"; mkdir -p "$STAGE/lib"
 cp -a "dist/$NAME/." "$STAGE/"
@@ -70,7 +89,11 @@ echo "==> bundled $(ls "$STAGE/lib" | wc -l) NSS/NSPR libs"
 cat > "$STAGE/run.sh" <<'RUN'
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "$0")")"
-export LD_LIBRARY_PATH="$HERE/lib:$HERE/_internal:$LD_LIBRARY_PATH"
+QTROOT="$HERE/_internal/PySide6/Qt"
+export LD_LIBRARY_PATH="$HERE/lib:$QTROOT/lib:$HERE/_internal:$LD_LIBRARY_PATH"
+export QT_PLUGIN_PATH="$QTROOT/plugins"
+export QT_QPA_PLATFORM_PLUGIN_PATH="$QTROOT/plugins/platforms"
+export QTWEBENGINEPROCESS_PATH="$QTROOT/libexec/QtWebEngineProcess"
 export QTWEBENGINE_CHROMIUM_FLAGS="--disable-gpu --no-sandbox ${QTWEBENGINE_CHROMIUM_FLAGS:-}"
 exec "$HERE/local-ai-hub" "$@"
 RUN
@@ -96,22 +119,21 @@ rm -rf "$WORK/$TARROOT"; cp -a "$STAGE" "$WORK/$TARROOT"
 tar -C "$WORK" -czf "$OUT/$NAME-$VERSION-standalone-linux-$ARCH.tar.gz" "$TARROOT"
 echo "==> standalone tarball: $(du -h "$OUT/$NAME-$VERSION-standalone-linux-$ARCH.tar.gz" | cut -f1)"
 
-# ---- 5. render icon ---------------------------------------------------------
-ICONDIR="$WORK/icons"
-python "$SRC/scripts/render_icon.py" "$SRC/assets/$NAME.svg" "$ICONDIR"
-
 # ---- 6. AppDir --------------------------------------------------------------
+# Icon is pre-rendered on the host (packaging/local-ai-hub-256.png) so the build
+# container needs no Qt/X system libs just to rasterize an SVG.
+ICON="$SRC/packaging/$NAME-256.png"
 rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib" \
          "$APPDIR/usr/share/applications" \
          "$APPDIR/usr/share/icons/hicolor/256x256/apps"
-cp -a "$STAGE/local-ai-hub" "$STAGE/_internal" "$APPDIR/usr/bin/"
+cp -a "$STAGE/local-ai-hub" "$STAGE/_internal" "$STAGE/qt.conf" "$APPDIR/usr/bin/"
 cp -a "$STAGE/lib/." "$APPDIR/usr/lib/"
 cp "$SRC/packaging/AppRun" "$APPDIR/AppRun"; chmod +x "$APPDIR/AppRun"
 cp "$SRC/packaging/$NAME.desktop" "$APPDIR/$NAME.desktop"
 cp "$SRC/packaging/$NAME.desktop" "$APPDIR/usr/share/applications/$NAME.desktop"
-cp "$ICONDIR/256x256/apps/$NAME.png" "$APPDIR/$NAME.png"
-cp "$ICONDIR/256x256/apps/$NAME.png" "$APPDIR/usr/share/icons/hicolor/256x256/apps/$NAME.png"
+cp "$ICON" "$APPDIR/$NAME.png"
+cp "$ICON" "$APPDIR/usr/share/icons/hicolor/256x256/apps/$NAME.png"
 
 # ---- 7. appimagetool --------------------------------------------------------
 wget -q -O "$WORK/appimagetool" \

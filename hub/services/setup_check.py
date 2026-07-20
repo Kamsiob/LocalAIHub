@@ -13,6 +13,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from .base import host_env
 from .comfyui import COMFYUI_ROOT
 
 OLLAMA_USER_UNIT = Path.home() / ".config/systemd/user/ollama.service"
@@ -61,7 +62,7 @@ def detect_platform() -> dict:
     rocminfo = shutil.which("rocminfo")
     if rocminfo:
         try:
-            out = subprocess.run([rocminfo], capture_output=True, text=True, timeout=15).stdout
+            out = subprocess.run([rocminfo], capture_output=True, text=True, timeout=15, env=host_env()).stdout
             if "gfx1151" in out:
                 gfx1151, gpu_detail = True, "rocminfo reports gfx1151"
         except Exception:
@@ -95,7 +96,7 @@ def _ollama_env() -> str:
     for args in (["--user", "show", "ollama", "-p", "Environment"],
                  ["show", "ollama", "-p", "Environment"]):
         try:
-            cp = subprocess.run(["systemctl", *args], capture_output=True, text=True, timeout=10)
+            cp = subprocess.run(["systemctl", *args], capture_output=True, text=True, timeout=10, env=host_env())
             if "Environment=" in cp.stdout:
                 return cp.stdout
         except Exception:
@@ -157,7 +158,7 @@ def check_comfyui_rocm() -> dict:
                        f"No ComfyUI venv at {COMFY_VENV_PY}.")
     try:
         ver = subprocess.run([str(COMFY_VENV_PY), "-c", "import torch;print(torch.__version__)"],
-                             capture_output=True, text=True, timeout=30).stdout.strip()
+                             capture_output=True, text=True, timeout=30, env=host_env()).stdout.strip()
     except Exception as exc:  # noqa: BLE001
         return _result("comfy_rocm", "ComfyUI ROCm build", "fail", f"Could not import torch: {exc}")
     if "rocm7" in ver:
@@ -197,7 +198,7 @@ def apply_fix(fix_id: str) -> dict:
             GGUF_NODE.parent.mkdir(parents=True, exist_ok=True)
             r = subprocess.run(["git", "clone", "--depth", "1",
                                 "https://github.com/city96/ComfyUI-GGUF", str(GGUF_NODE)],
-                               capture_output=True, text=True, timeout=120)
+                               capture_output=True, text=True, timeout=120, env=host_env())
             if r.returncode != 0:
                 return {"ok": False, "message": r.stderr.strip()[:200] or "git clone failed"}
             return {"ok": True, "message": "Installed ComfyUI-GGUF. Restart ComfyUI to load it."}
@@ -211,7 +212,7 @@ def apply_fix(fix_id: str) -> dict:
             else:
                 text = text.replace("[Service]", "[Service]\nTimeoutStartSec=600", 1)
             OPENWEBUI_QUADLET.write_text(text)
-            subprocess.run(["systemctl", "--user", "daemon-reload"], timeout=15)
+            subprocess.run(["systemctl", "--user", "daemon-reload"], timeout=15, env=host_env())
             return {"ok": True, "message": "Set TimeoutStartSec=600. Restart Open WebUI to apply."}
 
         if fix_id == "ollama_env":
@@ -221,7 +222,7 @@ def apply_fix(fix_id: str) -> dict:
             if add and "ExecStart=" in text:
                 text = text.replace("ExecStart=", "\n".join(add) + "\nExecStart=", 1)
                 OLLAMA_USER_UNIT.write_text(text)
-                subprocess.run(["systemctl", "--user", "daemon-reload"], timeout=15)
+                subprocess.run(["systemctl", "--user", "daemon-reload"], timeout=15, env=host_env())
             return {"ok": True, "message": "Added the iGPU env vars. Restart Ollama to apply."}
 
         return {"ok": False, "message": f"No automatic fix for '{fix_id}'."}

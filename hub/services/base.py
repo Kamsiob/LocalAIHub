@@ -7,14 +7,32 @@ a service takes to warm up, which the UI uses to show a "starting…" state.
 """
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
+import sys
 import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass
 from typing import Optional
 
 SYSTEMCTL = shutil.which("systemctl") or "systemctl"
+
+
+def host_env() -> dict:
+    """Environment for spawning host system tools (systemctl, journalctl, git…).
+
+    In a frozen / AppImage build the process runs with LD_LIBRARY_PATH pointing at
+    the bundled libraries. A host binary that inherits it loads our older bundled
+    libs and fails (e.g. systemctl against a bundled libcrypto that lacks the
+    host's OPENSSL symbols). Strip it so host tools run against the host's own
+    libraries. A no-op when running from source.
+    """
+    env = os.environ.copy()
+    if getattr(sys, "frozen", False):
+        env.pop("LD_LIBRARY_PATH", None)
+        env.pop("LD_PRELOAD", None)
+    return env
 
 
 def run_systemctl(*args: str, timeout: float = 20) -> subprocess.CompletedProcess:
@@ -24,6 +42,7 @@ def run_systemctl(*args: str, timeout: float = 20) -> subprocess.CompletedProces
         capture_output=True,
         text=True,
         timeout=timeout,
+        env=host_env(),
     )
 
 
@@ -96,6 +115,7 @@ class Service:
                 [journalctl, "--user", "-u", self.unit, "-n", str(lines),
                  "--no-pager", "-o", "short-precise"],
                 capture_output=True, text=True, timeout=15,
+                env=host_env(),
             )
             return (cp.stdout or cp.stderr or "").strip() or "(no log output)"
         except Exception as exc:  # noqa: BLE001
