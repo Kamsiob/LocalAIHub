@@ -22,7 +22,12 @@ from PySide6.QtWebChannel import QWebChannel  # noqa: E402
 from PySide6.QtWebEngineWidgets import QWebEngineView  # noqa: E402
 from PySide6.QtWidgets import QApplication, QMainWindow  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent
+# When frozen by PyInstaller, bundled data (web/, added via --add-data) lives
+# under sys._MEIPASS; running from source it sits next to this file.
+if getattr(sys, "frozen", False):
+    ROOT = Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent))
+else:
+    ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "web"
 sys.path.insert(0, str(ROOT))
 

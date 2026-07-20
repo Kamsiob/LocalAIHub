@@ -1,0 +1,15 @@
+#!/bin/bash
+# AppImage entry point for Local AI Hub.
+# Locates the bundle dir, makes the bundled system libs (NSS, etc.) findable,
+# and launches the frozen PyInstaller executable.
+HERE="$(dirname "$(readlink -f "${0}")")"
+
+export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/bin/_internal:${LD_LIBRARY_PATH}"
+
+# QtWebEngine on an unknown machine: force software GL (no assumptions about the
+# GPU / drivers) and disable the Chromium sandbox, which needs a setuid helper or
+# user namespaces that a portable bundle can't rely on. The content is local, so
+# this is the standard, safe choice for a bundled WebEngine app.
+export QTWEBENGINE_CHROMIUM_FLAGS="--disable-gpu --no-sandbox ${QTWEBENGINE_CHROMIUM_FLAGS:-}"
+
+exec "${HERE}/usr/bin/local-ai-hub" "$@"
