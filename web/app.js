@@ -46,6 +46,7 @@
     bmc:      "https://buymeacoffee.com/kamsiob",
     telegram: "https://t.me/+g5LKm9rUnNcxMjk5",
     email:    "hello@kamsiob.com",
+    license:  "https://github.com/kamsiob/LocalAIHub/blob/main/LICENSE",
   };
 
   const SVC_META = {
@@ -616,6 +617,8 @@
 
         <div class="about-section-label">Feedback</div>
         <a class="email-link" data-act="open" data-url="mailto:${LINKS.email}">${I.mail}<span>Questions or suggestions? <b>${LINKS.email}</b></span></a>
+
+        <div class="about-license">Free &amp; open source · <a data-act="open" data-url="${LINKS.license}">AGPLv3</a></div>
       </div>`;
     document.body.appendChild(el);
     el.querySelector("#aboutClose").addEventListener("click", () => el.classList.remove("show"));
