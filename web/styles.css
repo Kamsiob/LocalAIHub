@@ -408,6 +408,12 @@ body {
 .cu-untracked::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--text-faint); }
 .cu-untracked:hover { color: var(--text-muted); }
 
+/* not-installed service — honest "not detected" state on a fresh machine */
+.card.is-absent { opacity: .68; }
+.card.is-absent .svc-status { color: var(--text-faint); }
+.card.is-absent .icon-sq { filter: grayscale(.6); opacity: .85; }
+.toggle.disabled { opacity: .4; cursor: not-allowed; }
+
 /* crashed / failed service */
 .card.is-failed { border-color: color-mix(in srgb, var(--err) 45%, var(--border)); }
 .card.is-failed .dot { background: var(--err);

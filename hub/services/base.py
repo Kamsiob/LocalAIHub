@@ -49,6 +49,7 @@ class ServiceStatus:
     detail: str = ""
     failed: bool = False        # unit entered the systemd "failed" state (a crash)
     result: str = ""            # systemd Result (exit-code / signal / success)
+    present: bool = True        # the unit exists on this machine (LoadState=loaded)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -111,9 +112,13 @@ class Service:
         return http_probe(self.health_url)
 
     def status(self) -> ServiceStatus:
-        props = self.show_props("ActiveState", "SubState", "Result")
+        props = self.show_props("ActiveState", "SubState", "Result", "LoadState")
         active_state = props.get("ActiveState", "")
         active = active_state == "active"
+        # LoadState=loaded means the unit exists here; not-found means the service
+        # simply isn't installed on this machine (a stranger's fresh box), which we
+        # surface honestly as "Not installed" rather than a misleading "Stopped".
+        present = props.get("LoadState", "loaded") not in ("not-found", "")
         return ServiceStatus(
             name=self.display_name,
             unit=self.unit,
@@ -123,6 +128,7 @@ class Service:
             sub_state=props.get("SubState", ""),
             failed=active_state == "failed",
             result=props.get("Result", ""),
+            present=present,
         )
 
     # --- control -------------------------------------------------------------

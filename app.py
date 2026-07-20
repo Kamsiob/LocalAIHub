@@ -65,9 +65,11 @@ class Backend(QObject):
             try:
                 st = svc.status()
                 services[key] = {"active": st.active, "serving": st.serving,
-                                 "failed": st.failed, "result": st.result}
+                                 "failed": st.failed, "result": st.result,
+                                 "present": st.present}
             except Exception:
-                services[key] = {"active": False, "serving": False, "failed": False}
+                services[key] = {"active": False, "serving": False, "failed": False,
+                                 "present": True}
 
             # One-shot alert when a service transitions into the failed state.
             is_failed = services[key].get("failed")

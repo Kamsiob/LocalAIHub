@@ -86,6 +86,7 @@
   const state = { services: {}, models: [], comfyModels: [], expanded: { ollama: false, comfyui: false } };
 
   function statusText(svc, s) {
+    if (s && s.present === false) return { txt: "Not installed", cls: "is-absent" };
     if (s && s.failed) return { txt: "Stopped unexpectedly", cls: "is-failed" };
     if (!s || !s.active) return { txt: "Stopped", cls: "" };
     if (!s.serving) return { txt: "Starting…", cls: "is-starting" };
@@ -103,8 +104,9 @@
       const s = state.services[svc] || { active: false, serving: false };
       const st = statusText(svc, s);
       const on = st.cls === "is-on";
+      const absent = s.present === false;
       const card = document.createElement("div");
-      card.className = `card ${st.cls}` + (state.expanded[svc] ? " expanded" : "");
+      card.className = `card ${st.cls}` + (state.expanded[svc] && !absent ? " expanded" : "");
       card.dataset.svc = svc;
 
       card.innerHTML = `
@@ -117,15 +119,17 @@
           <div class="svc-right">
             ${s.failed ? `<button class="btn-sm danger" data-act="clog" data-svc="${svc}">${I.warn}View log</button>` : ""}
             ${(meta.webPort && s.serving) ? `<button class="btn-open" data-act="open" data-port="${meta.webPort}" title="Open http://127.0.0.1:${meta.webPort}">Open ${I.external2}</button>` : ""}
-            ${meta.hasModels ? `<div class="chevron" data-act="expand">${I.chevron}</div>` : ""}
-            <div class="toggle" data-act="toggle" role="switch" aria-checked="${on}"><span class="knob"></span></div>
+            ${(meta.hasModels && !absent) ? `<div class="chevron" data-act="expand">${I.chevron}</div>` : ""}
+            ${absent
+              ? `<div class="toggle disabled" role="switch" aria-checked="false" aria-disabled="true" title="${meta.name} isn't installed on this machine"><span class="knob"></span></div>`
+              : `<div class="toggle" data-act="toggle" role="switch" aria-checked="${on}"><span class="knob"></span></div>`}
           </div>
         </div>
-        ${meta.hasModels ? modelsMarkup(svc) : ""}
+        ${(meta.hasModels && !absent) ? modelsMarkup(svc) : ""}
       `;
       cards.appendChild(card);
 
-      if (meta.hasModels) {
+      if (meta.hasModels && !absent) {
         const wrap = card.querySelector(".models");
         // Set the height instantly (no transition) on every render so a data
         // refresh never re-animates an already-open list into a flicker.
@@ -266,6 +270,7 @@
   // ---- actions ------------------------------------------------------------
   function onToggle(svc) {
     const s = state.services[svc] || {};
+    if (s.present === false) { toast(`${SVC_META[svc].name} isn't installed on this machine`); return; }
     const turnOn = !s.active;
     const card = document.querySelector(`.card[data-svc="${svc}"]`);
     const tog = card && card.querySelector(".toggle");
