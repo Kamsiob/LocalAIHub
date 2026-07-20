@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Local AI Hub
+GenericName=Local AI Service Manager
+Comment=Manage local AI services (Ollama, Open WebUI, ComfyUI) and their models
+Exec=local-ai-hub
+Icon=com.kamsiob.LocalAIHub
+Terminal=false
+Categories=Utility;
+Keywords=AI;LLM;Ollama;OpenWebUI;ComfyUI;models;
+StartupNotify=true
+StartupWMClass=local-ai-hub

@@ -1,0 +1,61 @@
+# Flatpak manifest for Local AI Hub.
+#
+# STATUS: draft pending one design decision — see flatpak/PACKAGING-NOTES.md.
+# Local AI Hub is a *host service manager*: it starts/stops/queries the user's
+# systemd services and reads their logs. Under Flatpak's sandbox the app cannot
+# shell out to `systemctl`/`journalctl` (those binaries aren't in the sandbox),
+# so the service layer must talk to the host systemd user manager over D-Bus
+# (org.freedesktop.systemd1). The finish-args below reflect that tight approach.
+#
+# The PySide6 dependency (a large Qt6 + QtWebEngine wheel) is installed from
+# pinned wheels generated with flatpak-pip-generator; see PACKAGING-NOTES.md.
+
+app-id: com.kamsiob.LocalAIHub
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: local-ai-hub
+
+finish-args:
+  # --- GUI (QtWebEngine desktop app) ---
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+
+  # --- Talk to the host user systemd manager to start/stop/query the services
+  #     this app exists to manage (Ollama, Open WebUI, ComfyUI). Scoped to the
+  #     single well-known name; not a broad session-bus grant. ---
+  - --talk-name=org.freedesktop.systemd1
+
+  # --- User-initiated model update checks + downloads (Ollama REST on
+  #     127.0.0.1:11434, and pulls from model hosts the user clicks). ---
+  - --share=network
+
+  # --- Read/write the ComfyUI model folders (scan installed models, download
+  #     updates into place). Restricted to the ComfyUI tree, not all of $HOME. ---
+  - --filesystem=~/ComfyUI
+
+# The pinned PySide6 wheels are generated into this file by flatpak-pip-generator;
+# kept in a separate include to keep this manifest readable.
+modules:
+  - pyside6.yaml
+
+  - name: local-ai-hub
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 app.py -t ${FLATPAK_DEST}/share/local-ai-hub/
+      - cp -r hub web ${FLATPAK_DEST}/share/local-ai-hub/
+      - |
+        cat > ${FLATPAK_DEST}/bin/local-ai-hub <<'EOF'
+        #!/bin/sh
+        exec python3 /app/share/local-ai-hub/app.py "$@"
+        EOF
+        chmod +x ${FLATPAK_DEST}/bin/local-ai-hub
+      - install -Dm644 flatpak/com.kamsiob.LocalAIHub.desktop ${FLATPAK_DEST}/share/applications/com.kamsiob.LocalAIHub.desktop
+      - install -Dm644 flatpak/com.kamsiob.LocalAIHub.metainfo.xml ${FLATPAK_DEST}/share/metainfo/com.kamsiob.LocalAIHub.metainfo.xml
+      - install -Dm644 packaging/local-ai-hub-256.png ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/com.kamsiob.LocalAIHub.png
+    sources:
+      - type: git
+        url: https://github.com/kamsiob/local-ai-hub.git
+        tag: v1.0.0

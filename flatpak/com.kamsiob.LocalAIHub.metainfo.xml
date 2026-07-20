@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.kamsiob.LocalAIHub</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <name>Local AI Hub</name>
+  <summary>Control panel for your local AI stack</summary>
+
+  <developer id="com.kamsiob">
+    <name>Kamsiob</name>
+  </developer>
+
+  <description>
+    <p>
+      Local AI Hub is a free, open-source control panel for the AI services running
+      on your own machine — Ollama, Open WebUI, and ComfyUI. It puts everything in
+      one window so you don't need a terminal for day-to-day use.
+    </p>
+    <p>What it does:</p>
+    <ul>
+      <li>See what's running at a glance, with live status for each service.</li>
+      <li>Start and stop each tool with a single toggle.</li>
+      <li>Manage your models — update, install, and remove them.</li>
+      <li>Plain-language alerts when a service crashes, with a one-click log view.</li>
+      <li>A built-in Getting Started guide.</li>
+    </ul>
+    <p>
+      Everything stays local. There's no account, no tracking, and no telemetry.
+      The only network use is the model update checks and downloads you explicitly
+      click.
+    </p>
+    <p>
+      It was built and verified on Bazzite with AMD Strix Halo hardware. Other
+      setups are untested for now — the app is honest about what it can and can't
+      detect on your machine, so services that aren't installed simply show as
+      "Not installed" rather than erroring.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">com.kamsiob.LocalAIHub.desktop</launchable>
+
+  <categories>
+    <category>Utility</category>
+    <category>System</category>
+  </categories>
+
+  <keywords>
+    <keyword>AI</keyword>
+    <keyword>LLM</keyword>
+    <keyword>Ollama</keyword>
+    <keyword>Open WebUI</keyword>
+    <keyword>ComfyUI</keyword>
+    <keyword>models</keyword>
+  </keywords>
+
+  <url type="homepage">https://kamsiob.com</url>
+  <url type="bugtracker">https://github.com/kamsiob/local-ai-hub/issues</url>
+  <url type="vcs-browser">https://github.com/kamsiob/local-ai-hub</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/kamsiob/local-ai-hub/main/assets/screenshot-dark.png</image>
+      <caption>The hub in dark mode, showing running services and installed models</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/kamsiob/local-ai-hub/main/assets/screenshot-light.png</image>
+      <caption>The hub in light mode</caption>
+    </screenshot>
+  </screenshots>
+
+  <content_rating type="oars-1.1" />
+
+  <releases>
+    <release version="1.0.0" date="2026-07-19">
+      <description>
+        <p>First public release of Local AI Hub.</p>
+      </description>
+    </release>
+  </releases>
+</component>
