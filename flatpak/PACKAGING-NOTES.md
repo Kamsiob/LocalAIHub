@@ -7,7 +7,7 @@ multi-day back-and-forth. This file records exactly where things stand.
 
 ## Application ID
 
-`com.kamsiob.LocalAIHub` — reverse-DNS of `kamsiob.com`, which you control. This
+`io.github.kamsiob.LocalAIHub` — reverse-DNS of `kamsiob.com`, which you control. This
 is the correct form. Flathub verifies ownership; see "What needs you" below.
 
 ## The honest complication: this app manages the host
@@ -48,7 +48,7 @@ until it's made. The manifest here is written for option 1.
 
 ## Permission justifications (for the PR description)
 
-Every finish-arg in `com.kamsiob.LocalAIHub.yaml`, and why it's the minimum:
+Every finish-arg in `io.github.kamsiob.LocalAIHub.yaml`, and why it's the minimum:
 
 | Permission | Why it's needed |
 |---|---|
@@ -90,7 +90,7 @@ by sha256 (Flathub builds are offline, so URLs+hashes are required).
 
 ## What needs you (the human), not me
 
-- **App-ID ownership.** For `com.kamsiob.LocalAIHub`, Flathub will want proof you
+- **App-ID ownership.** For `io.github.kamsiob.LocalAIHub`, Flathub will want proof you
   own `kamsiob.com`. After the PR is filed you verify on flathub.org by either
   logging in with the GitHub account tied to the project, or placing a token
   file they give you at a `/.well-known/…` path on `kamsiob.com`. Exact steps

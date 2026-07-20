@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.kamsiob.LocalAIHub</id>
+  <id>io.github.kamsiob.LocalAIHub</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
 
@@ -38,7 +38,7 @@
     </p>
   </description>
 
-  <launchable type="desktop-id">com.kamsiob.LocalAIHub.desktop</launchable>
+  <launchable type="desktop-id">io.github.kamsiob.LocalAIHub.desktop</launchable>
 
   <categories>
     <category>Utility</category>
