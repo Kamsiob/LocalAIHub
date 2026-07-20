@@ -2,7 +2,7 @@
 <component type="desktop-application">
   <id>io.github.kamsiob.LocalAIHub</id>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>MIT</project_license>
+  <project_license>AGPL-3.0-or-later</project_license>
 
   <name>Local AI Hub</name>
   <summary>Control panel for your local AI stack</summary>

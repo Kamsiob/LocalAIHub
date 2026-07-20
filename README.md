@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
+  <a href="LICENSE"><img alt="License: AGPL v3" src="https://img.shields.io/badge/license-AGPLv3-blue"></a>
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-blue">
   <img alt="Platform: Linux" src="https://img.shields.io/badge/platform-Linux-lightgrey">
   <img alt="Telemetry: none" src="https://img.shields.io/badge/telemetry-none-brightgreen">
@@ -79,10 +79,12 @@ entry that runs the app through the venv — double-clicking just works.
 - **Backend** — `hub/services/` controls each service via `systemctl --user` + HTTP probes; Ollama uses its REST API, ComfyUI model provenance/updates live in `hub/services/comfy_models.py`. Stdlib only.
 - **Adapting to another machine** — service unit names and ports are in `hub/services/*.py` (`unit=` / `health_url=`).
 
-## 📄 Free and open source
+## 📄 License
 
-Local AI Hub is **free and open source** under the [MIT License](LICENSE) — use it, fork it,
-modify it, redistribute it. The only condition is keeping the copyright notice with copies.
+Local AI Hub is **free and open source** under the [GNU Affero General Public License v3.0](LICENSE)
+(AGPLv3). You're free to use it commercially, fork it, and modify it — but if you modify it and run
+it as a hosted or networked service, AGPLv3 requires you to release your modified source too. That
+deliberately closes the loophole a permissive license leaves open for closed, hosted forks.
 
 ## 💬 Connect
 
