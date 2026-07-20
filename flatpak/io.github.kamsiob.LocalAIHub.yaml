@@ -64,3 +64,4 @@ modules:
       - type: git
         url: https://github.com/kamsiob/LocalAIHub.git
         tag: v1.0.0
+        commit: 67f71f1798c6466a0401bd552fdb85b2cfe2492c
