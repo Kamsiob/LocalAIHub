@@ -86,6 +86,8 @@ Local AI Hub is **free and open source** under the [GNU Affero General Public Li
 it as a hosted or networked service, AGPLv3 requires you to release your modified source too. That
 deliberately closes the loophole a permissive license leaves open for closed, hosted forks.
 
+Release history is in **[CHANGELOG.md](CHANGELOG.md)**.
+
 ## 💬 Connect
 
 - 📺 **YouTube** — [youtube.com/@kamsiob](https://youtube.com/@kamsiob)
