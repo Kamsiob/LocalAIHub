@@ -19,6 +19,16 @@ from typing import Optional
 SYSTEMCTL = shutil.which("systemctl") or "systemctl"
 
 
+def in_flatpak() -> bool:
+    """True when running inside a Flatpak sandbox.
+
+    There is no `systemctl`/`journalctl` binary in the sandbox, so service
+    control/status is done over the session bus instead (see _systemd_dbus).
+    Native and AppImage builds return False and keep using the CLI unchanged.
+    """
+    return bool(os.environ.get("FLATPAK_ID"))
+
+
 def host_env() -> dict:
     """Environment for spawning host system tools (systemctl, journalctl, git…).
 
@@ -88,7 +98,17 @@ class Service:
         self.health_url = health_url
 
     # --- queries -------------------------------------------------------------
+    def _raw_props(self) -> dict:
+        """Unit props (ActiveState/SubState/LoadState/Result) from the CLI, or
+        over D-Bus when sandboxed."""
+        if in_flatpak():
+            from . import _systemd_dbus
+            return _systemd_dbus.unit_status(self.unit)
+        return self.show_props("ActiveState", "SubState", "Result", "LoadState")
+
     def is_active(self) -> bool:
+        if in_flatpak():
+            return self._raw_props().get("ActiveState") == "active"
         return run_systemctl("is-active", self.unit).stdout.strip() == "active"
 
     def sub_state(self) -> str:
@@ -108,7 +128,23 @@ class Service:
         return out
 
     def logs(self, lines: int = 40) -> str:
-        """Last N journal lines for this unit (for showing after a crash)."""
+        """Last N journal lines for this unit (for showing after a crash).
+
+        Full journal reading everywhere except the Flatpak sandbox, which has no
+        access to the host journal — there we return an honest note rather than
+        pretending. Crash *detection* still works (it reads unit state, not the
+        journal); only this log detail view is unavailable under Flatpak.
+        """
+        if in_flatpak():
+            return (
+                "Viewing service logs isn't available in the sandboxed Flatpak "
+                "version of Local AI Hub — the sandbox can't read the host's "
+                "systemd journal.\n\n"
+                "For full log viewing, grab the AppImage from the releases page:\n"
+                "https://github.com/kamsiob/local-ai-hub/releases\n\n"
+                "On the host you can also read it directly with:\n"
+                f"  journalctl --user -u {self.unit} -n {lines}"
+            )
         journalctl = shutil.which("journalctl") or "journalctl"
         try:
             cp = subprocess.run(
@@ -123,6 +159,9 @@ class Service:
 
     def enabled_state(self) -> Optional[str]:
         # Returns "enabled"/"disabled"/"generated"/"static"; None if unknown.
+        if in_flatpak():
+            from . import _systemd_dbus
+            return _systemd_dbus.unit_file_state(self.unit)
         out = run_systemctl("is-enabled", self.unit).stdout.strip()
         return out or None
 
@@ -132,7 +171,7 @@ class Service:
         return http_probe(self.health_url)
 
     def status(self) -> ServiceStatus:
-        props = self.show_props("ActiveState", "SubState", "Result", "LoadState")
+        props = self._raw_props()
         active_state = props.get("ActiveState", "")
         active = active_state == "active"
         # LoadState=loaded means the unit exists here; not-found means the service
@@ -153,10 +192,19 @@ class Service:
 
     # --- control -------------------------------------------------------------
     def start(self) -> bool:
+        if in_flatpak():
+            from . import _systemd_dbus
+            return _systemd_dbus.start_unit(self.unit)
         return run_systemctl("start", self.unit).returncode == 0
 
     def stop(self) -> bool:
+        if in_flatpak():
+            from . import _systemd_dbus
+            return _systemd_dbus.stop_unit(self.unit)
         return run_systemctl("stop", self.unit).returncode == 0
 
     def restart(self) -> bool:
+        if in_flatpak():
+            from . import _systemd_dbus
+            return _systemd_dbus.restart_unit(self.unit)
         return run_systemctl("restart", self.unit).returncode == 0

@@ -349,6 +349,12 @@ class Backend(QObject):
     def open_url(self, url: str) -> None:
         QDesktopServices.openUrl(QUrl(url))
 
+    @Slot(result=bool)
+    def in_flatpak(self) -> bool:
+        """True in the Flatpak build — the UI uses this to be upfront that log
+        viewing isn't available in the sandbox (crash detection still works)."""
+        return bool(os.environ.get("FLATPAK_ID"))
+
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:

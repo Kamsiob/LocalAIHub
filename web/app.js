@@ -83,6 +83,7 @@
 
   // ---- backend bridge -----------------------------------------------------
   let backend = null;        // set when QWebChannel connects
+  let inFlatpak = false;     // true in the sandboxed Flatpak build (limits log viewing)
   const state = { services: {}, models: [], comfyModels: [], expanded: { ollama: false, comfyui: false } };
 
   function statusText(svc, s) {
@@ -453,7 +454,7 @@
     bd.innerHTML = `
       <div class="modal log-modal">
         <h3 id="lmTitle">Service log</h3>
-        <div class="sub">The last lines from this service's journal.</div>
+        <div class="sub" id="lmSub">The last lines from this service's journal.</div>
         <pre class="log-pre" id="lmBody">Loading…</pre>
         <div class="modal-foot"><button class="btn-ghost" id="lmClose">Close</button></div>
       </div>`;
@@ -464,6 +465,11 @@
   function openLogModal(svc) {
     const bd = document.getElementById("logModal");
     bd.querySelector("#lmTitle").textContent = (SVC_META[svc] ? SVC_META[svc].name : svc) + " — recent log";
+    // Be upfront in the sandboxed Flatpak build: crash detection works, but the
+    // host journal (the log detail) isn't reachable — so say so plainly here.
+    bd.querySelector("#lmSub").textContent = inFlatpak
+      ? "Log viewing isn't available in the Flatpak version — see the note below."
+      : "The last lines from this service's journal.";
     const body = bd.querySelector("#lmBody");
     body.textContent = "Loading…";
     bd.classList.add("show");
@@ -735,6 +741,7 @@
           }
         });
         if (backend.get_theme) backend.get_theme(function (t) { if (t) { applyTheme(t); localStorage.setItem("theme", t); } });
+        if (backend.in_flatpak) backend.in_flatpak(function (f) { inFlatpak = !!f; });
         if (backend.request_refresh) backend.request_refresh();
       });
     } else {
