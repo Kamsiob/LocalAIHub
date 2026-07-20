@@ -141,7 +141,7 @@ class Service:
                 "version of Local AI Hub — the sandbox can't read the host's "
                 "systemd journal.\n\n"
                 "For full log viewing, grab the AppImage from the releases page:\n"
-                "https://github.com/kamsiob/local-ai-hub/releases\n\n"
+                "https://github.com/kamsiob/LocalAIHub/releases\n\n"
                 "On the host you can also read it directly with:\n"
                 f"  journalctl --user -u {self.unit} -n {lines}"
             )

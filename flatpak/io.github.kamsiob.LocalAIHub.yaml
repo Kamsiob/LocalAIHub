@@ -62,5 +62,5 @@ modules:
       - install -Dm644 packaging/local-ai-hub-256.png ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/io.github.kamsiob.LocalAIHub.png
     sources:
       - type: git
-        url: https://github.com/kamsiob/local-ai-hub.git
+        url: https://github.com/kamsiob/LocalAIHub.git
         tag: v1.0.0

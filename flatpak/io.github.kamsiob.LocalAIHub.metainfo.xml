@@ -55,16 +55,16 @@
   </keywords>
 
   <url type="homepage">https://kamsiob.com</url>
-  <url type="bugtracker">https://github.com/kamsiob/local-ai-hub/issues</url>
-  <url type="vcs-browser">https://github.com/kamsiob/local-ai-hub</url>
+  <url type="bugtracker">https://github.com/kamsiob/LocalAIHub/issues</url>
+  <url type="vcs-browser">https://github.com/kamsiob/LocalAIHub</url>
 
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/kamsiob/local-ai-hub/main/assets/screenshot-dark.png</image>
+      <image>https://raw.githubusercontent.com/kamsiob/LocalAIHub/main/assets/screenshot-dark.png</image>
       <caption>The hub in dark mode, showing running services and installed models</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/kamsiob/local-ai-hub/main/assets/screenshot-light.png</image>
+      <image>https://raw.githubusercontent.com/kamsiob/LocalAIHub/main/assets/screenshot-light.png</image>
       <caption>The hub in light mode</caption>
     </screenshot>
   </screenshots>

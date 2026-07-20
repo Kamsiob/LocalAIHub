@@ -109,7 +109,7 @@ Requires a Linux desktop with a graphical session. It manages your local
 systemd --user services (Ollama, Open WebUI, ComfyUI); services that aren't
 installed simply show as "Not installed".
 
-Homepage: https://kamsiob.com   Source: https://github.com/kamsiob/local-ai-hub
+Homepage: https://kamsiob.com   Source: https://github.com/kamsiob/LocalAIHub
 EOF
 
 # ---- 4. standalone tarball --------------------------------------------------
