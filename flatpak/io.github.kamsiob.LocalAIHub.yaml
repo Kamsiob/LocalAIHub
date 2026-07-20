@@ -50,6 +50,10 @@ modules:
       - |
         cat > ${FLATPAK_DEST}/bin/local-ai-hub <<'EOF'
         #!/bin/sh
+        # PySide6 (from the BaseApp) looks for the WebEngine helper under its own
+        # package dir / /usr; in this layout it lives at the /app prefix, so point
+        # QtWebEngine at it explicitly.
+        export QTWEBENGINEPROCESS_PATH=/app/bin/QtWebEngineProcess
         exec python3 /app/share/local-ai-hub/app.py "$@"
         EOF
         chmod +x ${FLATPAK_DEST}/bin/local-ai-hub
