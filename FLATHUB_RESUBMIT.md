@@ -46,7 +46,7 @@ The only Local AI Hub installed on the machine today is the 1.3.0 AppImage at
 points at. An AppImage recording will not satisfy checklist item 2 — it asks
 specifically for the app running as a Flatpak.
 
-Expect the Flatpak build to show an **empty "Local Apps & Services" section with
+Expect the Flatpak build to show an **empty "Self-Hosted Apps & Services" section with
 a note explaining it can't look**, because the sandbox has no route to podman.
 That is correct behaviour and worth understanding before it appears on camera.
 

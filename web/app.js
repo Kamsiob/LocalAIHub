@@ -105,7 +105,7 @@
     appsCollapsed: null,   // null = decide from the count on first render
   };
 
-  // Above this many services, "Local Apps & Services" starts collapsed. Six fits
+  // Above this many services, "Self-Hosted Apps & Services" starts collapsed. Six fits
   // on screen under the AI section without pushing it out of view; a dozen
   // containers would bury the tools this app is actually about.
   const APPS_COLLAPSE_THRESHOLD = 6;

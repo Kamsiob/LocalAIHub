@@ -5,7 +5,7 @@
   <b>Local AI</b> first — <a href="https://ollama.com">Ollama</a>,
   <a href="https://openwebui.com">Open&nbsp;WebUI</a>,
   <a href="https://github.com/comfyanonymous/ComfyUI">ComfyUI</a>, and agent harnesses on top —
-  and below it <b>Local Apps &amp; Services</b>, whatever else you run in rootless Podman,
+  and below it <b>Self-Hosted Apps &amp; Services</b>, whatever else you run in rootless Podman,
   found automatically. Start/stop each one, watch live status, manage models,
   and see the address that actually works from your phone.
 </p>
@@ -18,9 +18,9 @@
 </p>
 
 <p align="center">
-  <img src="assets/screenshot-dark.png" alt="Local AI Hub — dark theme, showing the Local AI and Local Apps &amp; Services groups" width="380">
+  <img src="assets/screenshot-dark.png" alt="Local AI Hub — dark theme, showing the Local AI and Self-Hosted Apps &amp; Services groups" width="380">
   &nbsp;
-  <img src="assets/screenshot-light.png" alt="Local AI Hub — light theme, showing the Local AI and Local Apps &amp; Services groups" width="380">
+  <img src="assets/screenshot-light.png" alt="Local AI Hub — light theme, showing the Local AI and Self-Hosted Apps &amp; Services groups" width="380">
 </p>
 <p align="center">
   <img src="assets/screenshot-narrow.png" alt="Local AI Hub at a narrow window width" width="240">
@@ -54,7 +54,7 @@ full manual walkthrough (every command verified against a working machine).
 
 ## ✨ Features
 
-- **Two clear groups** — **Local AI** on top (the tools this app is about), **Local Apps & Services** below. The second group collapses, and starts collapsed past six services, so a big homelab never buries the AI stack.
+- **Two clear groups** — **Local AI** on top (the tools this app is about), **Self-Hosted Apps & Services** below. The second group collapses, and starts collapsed past six services, so a big homelab never buries the AI stack.
 - **Your other self-hosted services, found automatically** — the app asks Podman what's actually running rather than checking a list of supported names, so your Jellyfin or Nextcloud shows up the same way. Well-known services get a proper label; anything else is shown honestly by container name and port. Pods collapse to one entry, and containers you ran by hand stay out.
 - **One toggle per service** — start/stop anything in either group (systemd `--user`), live status from a real liveness check, not just "the container exists".
 - **Open in browser** — one click to each running web UI, always via `127.0.0.1` (never `localhost`).

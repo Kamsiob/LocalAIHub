@@ -313,7 +313,7 @@ If Hermes is only published on a remote address (a Tailscale IP, say), nothing a
 
 ### Your other self-hosted services
 
-Below the AI stack, Local AI Hub lists whatever else you self-host, under "Local Apps & Services". You don't configure this and there's no list of supported apps — it asks Podman what's actually running.
+Below the AI stack, Local AI Hub lists whatever else you self-host, under "Self-Hosted Apps & Services". You don't configure this and there's no list of supported apps — it asks Podman what's actually running.
 
 #### What shows up, and what doesn't
 

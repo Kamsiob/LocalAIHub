@@ -75,9 +75,14 @@
   <content_rating type="oars-1.1" />
 
   <releases>
+    <release version="1.3.1" date="2026-08-10">
+      <description>
+        <p>Renames the second group to Self-Hosted Apps and Services, which says more clearly that it covers the services you host yourself rather than applications installed on the machine.</p>
+      </description>
+    </release>
     <release version="1.3.0" date="2026-08-10">
       <description>
-        <p>The app now covers everything you self-host, in two groups: Local AI on top, and Local Apps and Services below, found automatically from your rootless Podman containers.</p>
+        <p>The app now covers everything you self-host, in two groups: Local AI on top, and Self-Hosted Apps and Services below, found automatically from your rootless Podman containers.</p>
         <p>Each service shows the addresses it is actually reachable at, including your LAN and Tailscale, so you know what to type on a phone.</p>
       </description>
     </release>

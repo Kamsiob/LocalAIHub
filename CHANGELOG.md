@@ -5,6 +5,22 @@ All notable changes to Local AI Hub are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] — 2026-08-10
+
+### Changed
+- The second group is now called **Self-Hosted Apps & Services**, everywhere:
+  the app, the README, the in-app guide and the store listing. "Local Apps"
+  read as though it meant applications installed on the machine, which is the
+  one thing the section is not about.
+
+### Fixed
+- The README and store screenshots showed the real services, ports and endpoint
+  of the machine they were captured on — a homelab inventory that has no reason
+  to be in a public repository. They are now rendered from fixed demo data
+  (`tools/shoot_readme.py`), so they show the layout without showing anyone's
+  setup, and stay identical whatever is installed on the machine that builds a
+  release.
+
 ## [1.3.0] — 2026-08-10
 
 ### Added
@@ -153,6 +169,7 @@ WebUI, and ComfyUI — built and verified on Bazzite with AMD Strix Halo hardwar
 - **Distribution** — a portable AppImage and a standalone (no-Python) build, plus
   a Flatpak that controls the host systemd services over D-Bus inside the sandbox.
 
+[1.3.1]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.3.1
 [1.3.0]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.3.0
 [1.2.1]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.2.1
 [1.2.0]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.2.0
