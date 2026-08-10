@@ -13,6 +13,9 @@
     ollama: '<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="4.2" rx="1.6" fill="currentColor" opacity=".95"/><rect x="4" y="9.9" width="16" height="4.2" rx="1.6" fill="currentColor" opacity=".75"/><rect x="4" y="15.8" width="16" height="4.2" rx="1.6" fill="currentColor" opacity=".55"/></svg>',
     openwebui: '<svg viewBox="0 0 24 24" fill="none"><path d="M4 6.5A2.5 2.5 0 016.5 4h11A2.5 2.5 0 0120 6.5v7A2.5 2.5 0 0117.5 16H9l-4 3.5V16H6.5A2.5 2.5 0 014 13.5v-7z" fill="currentColor"/></svg>',
     comfyui: '<svg viewBox="0 0 24 24" fill="none"><path d="M14.7 3.3l6 6-9.9 9.9-3.6.7.7-3.6L14.7 3.3z" fill="currentColor"/><circle cx="5" cy="19" r="1.6" fill="currentColor"/><path d="M16.2 5.8l2 2" stroke="rgba(255,255,255,.6)" stroke-width="1.3"/></svg>',
+    // A harness: one node driving several below it. Drawn in the same 24x24
+    // filled style as the three service marks, not borrowed from an icon set.
+    hermes: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.6" fill="currentColor"/><path d="M12 7.8v3.4M12 11.2H6.4v2.2M12 11.2h5.6v2.2M12 11.2v2.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="4.2" y="14" width="4.4" height="4.4" rx="1.4" fill="currentColor" opacity=".8"/><rect x="9.8" y="14" width="4.4" height="4.4" rx="1.4" fill="currentColor" opacity=".6"/><rect x="15.4" y="14" width="4.4" height="4.4" rx="1.4" fill="currentColor" opacity=".8"/></svg>',
     sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/></svg>',
     moon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/></svg>',
     chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
@@ -85,7 +88,23 @@
   // ---- backend bridge -----------------------------------------------------
   let backend = null;        // set when QWebChannel connects
   let inFlatpak = false;     // true in the sandboxed Flatpak build (limits log viewing)
-  const state = { services: {}, models: [], comfyModels: [], expanded: { ollama: false, comfyui: false } };
+  const state = { services: {}, models: [], comfyModels: [], layers: [], expanded: { ollama: false, comfyui: false } };
+
+  // A layer's display name isn't in SVC_META (that map is the three base
+  // services); look it up from the live layer list instead so toasts and
+  // messages name it properly.
+  function displayName(key) {
+    if (SVC_META[key]) return SVC_META[key].name;
+    const l = state.layers.find(x => x.key === key);
+    return l ? l.name : key;
+  }
+
+  // Layers carry active/present/failed on the entry itself rather than in
+  // `services`, so toggling one reads its state from wherever it actually lives.
+  function svcState(key) {
+    if (state.services[key]) return state.services[key];
+    return state.layers.find(x => x.key === key) || {};
+  }
 
   function statusText(svc, s) {
     if (s && s.present === false) return { txt: "Not installed", cls: "is-absent" };
@@ -141,6 +160,119 @@
   }
 
   function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+  // ---- layers -------------------------------------------------------------
+  // A harness sits on top of a base service, so it gets the same card in its own
+  // section below them, and states its dependency in place. The whole section
+  // disappears when nothing is installed — an empty "Layers" heading would
+  // imply the user is missing something.
+  function layerStatus(l) {
+    const info = l.info || {};
+    if (l.present === false) return { txt: "Not installed", cls: "is-absent" };
+    if (l.failed) return { txt: "Stopped unexpectedly", cls: "is-failed" };
+    if (!l.active) return { txt: "Stopped", cls: "" };
+    // A running container whose gateway is off is a real state, and the one the
+    // unit alone would report as simply "Running".
+    if (info.reachable && info.gateway && info.gateway !== "running") {
+      return { txt: `Running · gateway ${esc(info.gateway)}`, cls: "is-on is-starting" };
+    }
+    if (!l.serving) return { txt: "Starting…", cls: "is-starting" };
+    if (info.gateway === "running") return { txt: "Running · gateway up", cls: "is-on" };
+    return { txt: "Running", cls: "is-on" };
+  }
+
+  function layerModelRow(l) {
+    const info = l.info || {};
+    const ms = l.model_state || {};
+    if (!info.model) return "";
+    const ctx = info.context ? ` · ${Number(info.context).toLocaleString()} context` : "";
+    // The confusing case worth calling out: the harness looks healthy while
+    // pointing at a model that no longer exists.
+    const missing = ms.checked === true && ms.installed === false;
+    return `<div class="ii-row"><span>Model</span><b class="${missing ? "flag" : ""}">${esc(info.model)}${ctx}</b></div>`;
+  }
+
+  function layerNotes(l) {
+    const info = l.info || {};
+    const ms = l.model_state || {};
+    const dep = l.dependency || {};
+    const out = [];
+
+    if (ms.checked === true && ms.installed === false) {
+      out.push(`<div class="layer-note warn">${I.warn}<div>${esc(l.name)} is set to use
+        <b>${esc(info.model)}</b>, which isn't installed in ${esc(dep.name || "Ollama")}.
+        It will fail when it tries to run. Install that model, or point ${esc(l.name)} at one you have.</div></div>`);
+    } else if (ms.known && ms.checked === false && dep.active === false) {
+      out.push(`<div class="layer-note note">${I.info}<div>${esc(dep.name || "Ollama")} is stopped,
+        so its model list couldn't be checked.</div></div>`);
+    }
+
+    if (l.active && info.reachable === false) {
+      out.push(`<div class="layer-note note">${I.info}<div>The container is running but its status
+        endpoint isn't answering on 127.0.0.1:9119, so the gateway state below can't be read.</div></div>`);
+    }
+
+    (info.unavailable || []).forEach(u => {
+      const opts = (u.options || []).map(o => `<li>${esc(o)}</li>`).join("");
+      out.push(`<div class="layer-note note">${I.info}<div><b>${esc(u.what)}</b> isn't available here.
+        ${esc(u.why)}${opts ? `<ul>${opts}</ul>` : ""}</div></div>`);
+    });
+    return out.join("");
+  }
+
+  function renderLayers() {
+    const host = document.getElementById("layers");
+    if (!host) return;
+    // An uninstalled harness is hidden rather than shown as an empty card. The
+    // base services announce themselves when absent because the app is about
+    // them; someone who has never installed Hermes should not be told they are
+    // missing it.
+    const layers = (state.layers || []).filter(l => l.present !== false);
+    if (!layers.length) { host.hidden = true; host.innerHTML = ""; return; }
+    host.hidden = false;
+
+    host.innerHTML = `<div class="layers-head">Running on top of your stack</div>` +
+      layers.map(l => {
+        const info = l.info || {};
+        const dep = l.dependency || {};
+        const st = layerStatus(l);
+        const on = st.cls.includes("is-on");
+        const depUp = dep.active === true;
+        const depTxt = dep.present === false
+          ? `Runs on <b>${esc(dep.name)}</b> — not installed, so ${esc(l.name)} has nothing to talk to`
+          : depUp
+            ? `Runs on <b>${esc(dep.name)}</b> — running`
+            : `Runs on <b>${esc(dep.name)}</b> — stopped, so ${esc(l.name)} can't reach a model`;
+
+        const facts = [
+          layerModelRow(l),
+          info.backend_url ? `<div class="ii-row"><span>Talks to</span><b>${esc(info.backend_url)}</b></div>` : "",
+          info.version ? `<div class="ii-row"><span>Version</span><b>${esc(info.version)}</b></div>` : "",
+          info.auth_required ? `<div class="ii-row"><span>Dashboard</span><b>Asks for a sign-in</b></div>` : "",
+        ].filter(Boolean).join("");
+
+        return `
+        <div class="card ${st.cls}" data-svc="${esc(l.key)}">
+          <div class="card-row">
+            <div class="icon-sq">${I.hermes}</div>
+            <div class="svc-meta">
+              <div class="svc-name">${esc(l.name)}</div>
+              <div class="svc-status"><span class="dot"></span>${st.txt}</div>
+            </div>
+            <div class="svc-right">
+              ${l.active ? `<button class="btn-open" data-act="open" data-port="9119" title="Open http://127.0.0.1:9119">Open ${I.external2}</button>` : ""}
+              ${l.active ? `<button class="icon-btn" data-act="lrestart" data-svc="${esc(l.key)}" title="Restart ${esc(l.name)}" aria-label="Restart ${esc(l.name)}">${I.refresh}</button>` : ""}
+              <div class="toggle" data-act="toggle" role="switch" aria-checked="${on}"><span class="knob"></span></div>
+            </div>
+          </div>
+          <div class="layer-body">
+            <div class="layer-dep ${depUp ? "up" : "down"}"><span class="dot"></span><span>${depTxt}</span></div>
+            ${facts ? `<div class="layer-facts">${facts}</div>` : ""}
+            ${layerNotes(l)}
+          </div>
+        </div>`;
+      }).join("");
+  }
 
   // Ollama update control: Update only when one is available, else Up to date;
   // Check when we haven't looked yet (or couldn't determine).
@@ -271,14 +403,14 @@
 
   // ---- actions ------------------------------------------------------------
   function onToggle(svc) {
-    const s = state.services[svc] || {};
-    if (s.present === false) { toast(`${SVC_META[svc].name} isn't installed on this machine`); return; }
+    const s = svcState(svc);
+    if (s.present === false) { toast(`${displayName(svc)} isn't installed on this machine`); return; }
     const turnOn = !s.active;
     const card = document.querySelector(`.card[data-svc="${svc}"]`);
     const tog = card && card.querySelector(".toggle");
     if (backend && !backend.set_service) { toast("Controls arrive in the next step"); return; }
     if (tog) tog.classList.add("busy");
-    toast(`${SVC_META[svc].name}: ${turnOn ? "starting…" : "stopping…"}`);
+    toast(`${displayName(svc)}: ${turnOn ? "starting…" : "stopping…"}`);
     if (backend && backend.set_service) {
       backend.set_service(svc, turnOn);      // real start/stop (async, status refresh follows)
       // Safety net: if the start/stop no-ops or fails, the pushed state can be
@@ -711,6 +843,25 @@
       else if (act === "clog") openLogModal(el.dataset.svc);
     });
 
+    // Layers use the same actions as the service cards; the only addition is a
+    // restart, offered because a harness is the thing you most often want to
+    // bounce without stopping the engine underneath it.
+    document.getElementById("layers").addEventListener("click", (e) => {
+      const el = e.target.closest("[data-act]");
+      if (!el) return;
+      const card = e.target.closest(".card");
+      const svc = card && card.dataset.svc;
+      const act = el.dataset.act;
+      if (act === "toggle") onToggle(svc);
+      else if (act === "open") openUrl(localServiceUrl(el.dataset.port));
+      else if (act === "lrestart") {
+        if (backend && backend.restart_service) {
+          toast(`${displayName(svc)}: restarting…`);
+          backend.restart_service(svc);
+        } else toast("Not connected to backend");
+      }
+    });
+
     // Escape closes the topmost open overlay/modal (Getting Started, About,
     // Setup, Log, Source). Modals already close on backdrop click; the
     // full-screen overlays have no "outside" to click, so Escape is their exit.
@@ -741,7 +892,9 @@
     if (payload.services) state.services = payload.services;
     if (payload.models) state.models = payload.models;
     if (payload.comfyui_models) state.comfyModels = payload.comfyui_models;
+    if (payload.layers) state.layers = payload.layers;
     render();
+    renderLayers();
   }
   window.__applyState = applyState;   // backend pushes here
 

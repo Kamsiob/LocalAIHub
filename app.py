@@ -33,6 +33,7 @@ sys.path.insert(0, str(ROOT))
 
 from hub import config  # noqa: E402
 from hub.guide import GUIDE  # noqa: E402
+from hub.layers import build_layers  # noqa: E402
 from hub.services import ComfyUIService, OllamaService, OpenWebUIService  # noqa: E402
 from hub.services import comfy_models  # noqa: E402
 from hub.services import setup_check  # noqa: E402
@@ -57,6 +58,10 @@ class Backend(QObject):
             "openwebui": self.openwebui,
             "comfyui": self.comfyui,
         }
+        # Harnesses running on top of the base services. Registered alongside the
+        # services so start/stop and the install watcher treat them identically.
+        self._layers = build_layers()
+        self._services.update(self._layers)
         self._last_failed: dict = {}   # for one-shot "stopped unexpectedly" alerts
         self._last_present: dict = {}  # for one-shot install/uninstall alerts
         self._ollama_updates: dict = {}   # model name -> last update-check result
@@ -141,7 +146,63 @@ class Backend(QObject):
                 m["update"] = None
                 m["untracked"] = False
 
-        return {"services": services, "models": models, "comfyui_models": comfyui_models}
+        return {"services": services, "models": models,
+                "comfyui_models": comfyui_models,
+                "layers": self._collect_layers(services, models, loaded)}
+
+    def _collect_layers(self, services: dict, models: list, loaded) -> list:
+        """Harness state, plus the two things that make a harness confusing.
+
+        First, what it depends on: Hermes cannot work with Ollama stopped, so the
+        base service's real state travels with it instead of being left for the
+        user to correlate between two cards.
+
+        Second, whether the model it is configured against actually exists. A
+        harness pointed at a model that was deleted looks perfectly healthy from
+        its own status endpoint, and that is precisely the case worth flagging.
+        """
+        out = []
+        for key, layer in self._layers.items():
+            try:
+                entry = layer.to_dict()
+            except Exception:
+                continue
+            dep_key = entry.get("depends_on") or ""
+            dep_state = services.get(dep_key) or {}
+            dep_svc = self._services.get(dep_key)
+            entry["dependency"] = {
+                "key": dep_key,
+                "name": getattr(dep_svc, "display_name", dep_key),
+                "active": bool(dep_state.get("active")),
+                "present": bool(dep_state.get("present", True)),
+            }
+            entry["model_state"] = self._model_state(
+                entry.get("info", {}).get("model"),
+                models,
+                bool(dep_state.get("active")),
+                loaded,
+            )
+            out.append(entry)
+        return out
+
+    @staticmethod
+    def _model_state(name, models: list, ollama_active: bool, loaded) -> dict:
+        """Does the harness's configured model actually exist, and is it loaded?
+
+        `checked` separates "Ollama says this model is gone" from "Ollama was
+        down so nobody asked" — reporting the second as missing would invent a
+        problem every time the user stops Ollama.
+        """
+        if not name:
+            return {"known": False}
+        if not ollama_active:
+            return {"known": True, "checked": False}
+        return {
+            "known": True,
+            "checked": True,
+            "installed": any(m.get("name") == name for m in models),
+            "loaded": loaded == name,
+        }
 
     # --- ComfyUI model provenance + updates ---------------------------------
     def _emit_state(self) -> None:
@@ -249,6 +310,32 @@ class Backend(QObject):
             except Exception as exc:  # noqa: BLE001
                 self.notify.emit(f"{svc.display_name}: {exc}")
             # Emit a few refreshes so the UI reflects starting -> running/stopped.
+            for _ in range(10):
+                self.state_changed.emit(json.dumps(self._collect()))
+                time.sleep(1)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    @Slot(str)
+    def restart_service(self, key: str) -> None:
+        """Restart a unit. Offered on the Hermes layer because its gateway has a
+        restart of its own that the app can't reach — /api/gateway needs the
+        dashboard credentials — so restarting the container is the honest
+        equivalent available without asking the user for a password."""
+        svc = self._services.get(key)
+        if svc is None:
+            return
+
+        def work() -> None:
+            try:
+                ok = svc.restart()
+                self.notify.emit(f"{svc.display_name} restarted" if ok
+                                 else f"{svc.display_name} failed to restart")
+            except Exception as exc:  # noqa: BLE001
+                self.notify.emit(f"{svc.display_name}: {exc}")
+            invalidate = getattr(svc, "invalidate", None)
+            if callable(invalidate):
+                invalidate()
             for _ in range(10):
                 self.state_changed.emit(json.dumps(self._collect()))
                 time.sleep(1)

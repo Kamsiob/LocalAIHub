@@ -13,6 +13,7 @@
   --ollama: #7c5cff;
   --openwebui: #2f9bff;
   --comfyui: #ff5c9d;
+  --hermes: #12a594;
   --ok: #2fbf71;
   --warn: #f5a524;
   --err: #ff5c5c;
@@ -232,6 +233,7 @@ body {
 .card[data-svc="ollama"]   .icon-sq { background: linear-gradient(140deg, #8a6bff, #6d4bff); }
 .card[data-svc="openwebui"].icon-sq, .card[data-svc="openwebui"] .icon-sq { background: linear-gradient(140deg, #46a9ff, #1f83f0); }
 .card[data-svc="comfyui"]  .icon-sq { background: linear-gradient(140deg, #ff77b0, #ff3d86); }
+.card[data-svc="hermes"]   .icon-sq { background: linear-gradient(140deg, #2ac0ae, #0d8e80); }
 
 .svc-meta { flex: 1 1 auto; min-width: 0; }
 .svc-name { font-size: 16px; font-weight: 650; letter-spacing: -.01em; display: flex; align-items: center; gap: 9px; }
@@ -281,6 +283,7 @@ body {
 .card[data-svc="ollama"].is-on   .toggle { background: linear-gradient(135deg, #8a6bff, #6d4bff); }
 .card[data-svc="openwebui"].is-on .toggle { background: linear-gradient(135deg, #46a9ff, #1f83f0); }
 .card[data-svc="comfyui"].is-on  .toggle { background: linear-gradient(135deg, #ff77b0, #ff3d86); }
+.card[data-svc="hermes"].is-on   .toggle { background: linear-gradient(135deg, #2ac0ae, #0d8e80); }
 .card.is-on .toggle .knob { transform: translateX(22px); }
 .toggle.busy { opacity: .6; pointer-events: none; }
 
@@ -294,6 +297,7 @@ body {
 .card[data-svc="ollama"].is-on::after   { box-shadow: 0 0 0 1px color-mix(in srgb, var(--ollama) 35%, transparent), 0 0 22px 2px color-mix(in srgb, var(--ollama) 30%, transparent); }
 .card[data-svc="openwebui"].is-on::after { box-shadow: 0 0 0 1px color-mix(in srgb, var(--openwebui) 35%, transparent), 0 0 22px 2px color-mix(in srgb, var(--openwebui) 30%, transparent); }
 .card[data-svc="comfyui"].is-on::after   { box-shadow: 0 0 0 1px color-mix(in srgb, var(--comfyui) 35%, transparent), 0 0 22px 2px color-mix(in srgb, var(--comfyui) 30%, transparent); }
+.card[data-svc="hermes"].is-on::after    { box-shadow: 0 0 0 1px color-mix(in srgb, var(--hermes) 35%, transparent), 0 0 22px 2px color-mix(in srgb, var(--hermes) 30%, transparent); }
 @keyframes breathe { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .card.is-on::after { animation: none; } }
 
@@ -337,6 +341,45 @@ body {
 .btn-sm:hover { background: var(--surface-2); }
 .btn-sm:active { transform: scale(.96); }
 .btn-sm[disabled] { opacity: .5; cursor: default; }
+
+/* ---------- layers (harnesses running on top of a base service) ----------
+   Deliberately the same card as everything else: a layer is not a different
+   kind of object, it just sits above one. What separates it is position (its
+   own labelled section, below the services it depends on) and the dependency
+   line inside the card — not a different shape, border or background. */
+.layers { margin-top: 26px; }
+.layers-head { font-size: 12px; color: var(--text-faint); text-transform: uppercase;
+  letter-spacing: .06em; font-weight: 600; padding: 0 4px 10px; }
+.layers .card { margin-bottom: 0; }
+
+.layer-body { border-top: 1px solid var(--border); padding: 12px 14px 14px; }
+
+/* "Runs on Ollama — running": the dependency stated on the layer itself, so a
+   stopped engine explains a useless harness in place rather than two cards
+   away. Reuses the card's own status dot vocabulary. */
+.layer-dep { display: flex; align-items: center; gap: 9px; font-size: 13px;
+  color: var(--text-muted); padding: 2px 2px 12px; }
+.layer-dep .dot { width: 8px; height: 8px; border-radius: 50%; flex: none;
+  background: var(--text-faint); }
+.layer-dep.up .dot { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+.layer-dep.down .dot { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent); }
+.layer-dep.down { color: var(--text); }
+.layer-dep b { color: var(--text); font-weight: 600; }
+
+.layer-facts { background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 14px; }
+.layer-facts .ii-row b.flag { color: var(--warn); }
+
+.layer-note { display: flex; gap: 10px; align-items: flex-start; padding: 11px 13px;
+  border-radius: 12px; margin-top: 10px; font-size: 12.5px; line-height: 1.6; }
+.layer-note svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+.layer-note.warn { background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); color: var(--text); }
+.layer-note.warn svg { color: var(--warn); }
+.layer-note.note { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted); }
+.layer-note.note svg { color: var(--text-faint); }
+.layer-note ul { margin: 6px 0 0 16px; padding: 0; }
+.layer-note li { margin: 3px 0; }
 
 /* ---------- browse links ---------- */
 .browse { margin-top: 26px; }
