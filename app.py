@@ -31,12 +31,15 @@ else:
 WEB = ROOT / "web"
 sys.path.insert(0, str(ROOT))
 
+from hub import addresses  # noqa: E402
 from hub import app_update  # noqa: E402
 from hub import config  # noqa: E402
 from hub.guide import GUIDE  # noqa: E402
 from hub.layers import build_layers  # noqa: E402
 from hub.services import ComfyUIService, OllamaService, OpenWebUIService  # noqa: E402
+from hub.services.base import Service  # noqa: E402
 from hub.services import comfy_models  # noqa: E402
+from hub.services import containers  # noqa: E402
 from hub.services import setup_check  # noqa: E402
 from hub.services.watch import ChangeWatcher  # noqa: E402
 
@@ -150,7 +153,50 @@ class Backend(QObject):
 
         return {"services": services, "models": models,
                 "comfyui_models": comfyui_models,
-                "layers": self._collect_layers(services, models, loaded)}
+                "layers": self._collect_layers(services, models, loaded),
+                "apps": self._collect_apps(),
+                "addresses": addresses.detect()}
+
+    def _collect_apps(self) -> dict:
+        """The non-AI self-hosted services, or an honest note about why not.
+
+        Returned as a dict rather than a list so the front-end can tell "you run
+        nothing else" (which is fine and shows nothing) apart from "this build
+        can't look" (which is a limitation and says so).
+        """
+        if not containers.available():
+            return {"supported": False, "limit": containers.SANDBOX_LIMIT, "items": []}
+        try:
+            found = containers.discover()
+        except Exception:
+            return {"supported": True, "limit": None, "items": []}
+
+        items = []
+        for entry in found:
+            try:
+                st = containers.status_for(entry)
+            except Exception:
+                st = {"active": entry["running"], "serving": False, "probe": ""}
+            primary = entry["ports"][0]
+            items.append({
+                "key": entry["key"],
+                "unit": entry["unit"],
+                "name": entry["name"],
+                "kind": entry["kind"],
+                "container": entry["container"],
+                "active": st["active"],
+                "serving": st["serving"],
+                "port": primary["port"],
+                # A port published only on a specific address (a Tailscale bind,
+                # say) is not reachable at 127.0.0.1, so the card has to open
+                # what actually answers rather than the usual loopback default.
+                "bound_host": primary["host"],
+                "reachable": addresses.urls_for(primary["port"])
+                if primary["host"] == "127.0.0.1"
+                else [{"kind": "bound", "url": f"http://{primary['host']}:{primary['port']}",
+                       "meaning": "Only at the address it's published on"}],
+            })
+        return {"supported": True, "limit": None, "items": items}
 
     def _collect_layers(self, services: dict, models: list, loaded) -> list:
         """Harness state, plus the two things that make a harness confusing.
@@ -318,6 +364,33 @@ class Backend(QObject):
 
         threading.Thread(target=work, daemon=True).start()
 
+    @Slot(str, bool)
+    def set_app(self, unit: str, turn_on: bool) -> None:
+        """Start/stop a discovered service by its quadlet unit name.
+
+        Deliberately goes through the same Service class the AI stack uses, so
+        it inherits the D-Bus path that keeps start/stop working under Flatpak
+        instead of growing a second, podman-shaped way of doing the same thing.
+        """
+        if not unit or "/" in unit or " " in unit:
+            return
+        svc = Service(unit=unit, display_name=unit.removesuffix(".service"))
+
+        def work() -> None:
+            try:
+                ok = svc.start() if turn_on else svc.stop()
+                verb = "started" if turn_on else "stopped"
+                action = "start" if turn_on else "stop"
+                self.notify.emit(f"{svc.display_name} {verb}" if ok
+                                 else f"{svc.display_name} failed to {action}")
+            except Exception as exc:  # noqa: BLE001
+                self.notify.emit(f"{svc.display_name}: {exc}")
+            for _ in range(8):
+                self.state_changed.emit(json.dumps(self._collect()))
+                time.sleep(1)
+
+        threading.Thread(target=work, daemon=True).start()
+
     @Slot(str)
     def restart_service(self, key: str) -> None:
         """Restart a unit. Offered on the Hermes layer because its gateway has a
@@ -476,6 +549,19 @@ class Backend(QObject):
                        "gearlever_url": "", "detail": f"Couldn't check ({exc})."}
             self.app_update_result.emit(json.dumps(res))
         threading.Thread(target=work, daemon=True).start()
+
+    @Slot(str)
+    def copy_text(self, text: str) -> None:
+        """Put text on the clipboard for the front-end.
+
+        The UI is a file:// document inside QtWebEngine, where the async
+        clipboard API isn't reliably permitted; going through Qt makes the copy
+        button actually copy instead of silently failing.
+        """
+        try:
+            QApplication.clipboard().setText(text)
+        except Exception:
+            pass
 
     @Slot(str)
     def open_url(self, url: str) -> None:

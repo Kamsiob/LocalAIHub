@@ -16,6 +16,10 @@
     // A harness: one node driving several below it. Drawn in the same 24x24
     // filled style as the three service marks, not borrowed from an icon set.
     hermes: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.6" fill="currentColor"/><path d="M12 7.8v3.4M12 11.2H6.4v2.2M12 11.2h5.6v2.2M12 11.2v2.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="4.2" y="14" width="4.4" height="4.4" rx="1.4" fill="currentColor" opacity=".8"/><rect x="9.8" y="14" width="4.4" height="4.4" rx="1.4" fill="currentColor" opacity=".6"/><rect x="15.4" y="14" width="4.4" height="4.4" rx="1.4" fill="currentColor" opacity=".8"/></svg>',
+    // A generic service mark for the user's own containers. Deliberately plain:
+    // the app doesn't know what someone self-hosts and shouldn't pretend to by
+    // inventing a per-service glyph.
+    box: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.2v9.6L12 21l-8-4.2V7.2L12 3z"/><path d="M4 7.2l8 4.2 8-4.2M12 11.4V21"/></svg>',
     sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/></svg>',
     moon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/></svg>',
     chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
@@ -88,7 +92,23 @@
   // ---- backend bridge -----------------------------------------------------
   let backend = null;        // set when QWebChannel connects
   let inFlatpak = false;     // true in the sandboxed Flatpak build (limits log viewing)
-  const state = { services: {}, models: [], comfyModels: [], layers: [], expanded: { ollama: false, comfyui: false } };
+  const state = {
+    services: {}, models: [], comfyModels: [], layers: [],
+    apps: { supported: true, limit: null, items: [] },
+    addresses: {},
+    expanded: { ollama: false, comfyui: false },
+    // Layer details start folded: the card's one-line status is the answer most
+    // of the time, and the model/context/version block is what you open when it
+    // isn't. Same chevron as the model lists.
+    layerOpen: {},
+    addrOpen: {},          // which cards have "reachable at" showing
+    appsCollapsed: null,   // null = decide from the count on first render
+  };
+
+  // Above this many services, "Local Apps & Services" starts collapsed. Six fits
+  // on screen under the AI section without pushing it out of view; a dozen
+  // containers would bury the tools this app is actually about.
+  const APPS_COLLAPSE_THRESHOLD = 6;
 
   // A layer's display name isn't in SVC_META (that map is the three base
   // services); look it up from the live layer list instead so toasts and
@@ -140,6 +160,7 @@
           <div class="svc-right">
             ${s.failed ? `<button class="btn-sm danger" data-act="clog" data-svc="${svc}">${I.warn}View log</button>` : ""}
             ${(meta.webPort && s.serving) ? `<button class="btn-open" data-act="open" data-port="${meta.webPort}" title="Open http://127.0.0.1:${meta.webPort}">Open ${I.external2}</button>` : ""}
+            ${(meta.webPort && s.serving) ? addrButton(svc) : ""}
             ${(meta.hasModels && !absent) ? `<div class="chevron" data-act="expand">${I.chevron}</div>` : ""}
             ${absent
               ? `<div class="toggle disabled" data-act="toggle" role="switch" aria-checked="false" aria-disabled="true" title="${meta.name} isn't installed on this machine"><span class="knob"></span></div>`
@@ -147,6 +168,7 @@
           </div>
         </div>
         ${(meta.hasModels && !absent) ? modelsMarkup(svc) : ""}
+        ${addrPanel(svc, meta.webPort || (svc === "ollama" ? 11434 : 0), !!s.serving)}
       `;
       cards.appendChild(card);
 
@@ -160,6 +182,122 @@
   }
 
   function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+  // ---- reachable-at -------------------------------------------------------
+  // "Open" still goes to 127.0.0.1, which is right on this machine and is what
+  // the button is for. This is the separate question — what do I type on my
+  // phone — and it stays folded away until asked.
+  function addrButton(key) {
+    const rows = reachableFor(key, null);
+    // Worth offering when there is more than one address, and also when there is
+    // exactly one that isn't loopback — a service published only on a Tailscale
+    // address has precisely one address a person needs, and it's the one they'd
+    // never guess.
+    const worthShowing = rows.length > 1 || (rows.length === 1 && rows[0].kind !== "loopback");
+    if (!worthShowing) return "";
+    return `<button class="icon-btn" data-act="addr" data-key="${esc(key)}"
+      title="Where this is reachable" aria-label="Where this is reachable">${I.globe}</button>`;
+  }
+
+  function reachableFor(key, port) {
+    // App cards carry their own list (they may be published on one address
+    // only); AI cards derive theirs from the machine's detected addresses.
+    const app = (state.apps.items || []).find(a => a.key === key);
+    if (app) return app.reachable || [];
+    if (port == null) {
+      const known = { ollama: 11434, openwebui: 3000, comfyui: 8188, hermes: 9119 };
+      port = known[key];
+    }
+    if (!port) return [];
+    const out = [];
+    for (const kind of ["loopback", "lan", "tailscale"]) {
+      const a = state.addresses[kind];
+      if (a) out.push({ kind, url: `http://${a.host}:${port}`, meaning: a.meaning });
+    }
+    return out;
+  }
+
+  function addrPanel(key, port, active) {
+    if (!active || !state.addrOpen[key]) return "";
+    const rows = reachableFor(key, port);
+    if (!rows.length) return "";
+    return `
+      <div class="addr-panel">
+        <div class="addr-head">Reachable at</div>
+        ${rows.map(r => `
+          <div class="addr-row">
+            <span class="addr-meaning">${esc(r.meaning)}</span>
+            <span class="addr-url">${esc(r.url)}</span>
+            <button class="addr-copy" data-act="copy" data-url="${esc(r.url)}"
+              title="Copy this address" aria-label="Copy this address">${I.copy}</button>
+          </div>`).join("")}
+      </div>`;
+  }
+
+  // ---- local apps & services ----------------------------------------------
+  function appStatus(a) {
+    if (!a.active) return { txt: "Stopped", cls: "" };
+    if (!a.serving) return { txt: "Running · not answering yet", cls: "is-starting" };
+    return { txt: "Running", cls: "is-on" };
+  }
+
+  function renderApps() {
+    const group = document.getElementById("groupApps");
+    const host = document.getElementById("apps");
+    const note = document.getElementById("appsNote");
+    const count = document.getElementById("appsCount");
+    if (!group || !host) return;
+
+    const data = state.apps || { supported: true, items: [] };
+    const items = data.items || [];
+
+    // Nothing to show and nothing to explain: hide the section entirely rather
+    // than leave a heading over an empty space implying something is missing.
+    if (!items.length && data.supported) { group.hidden = true; return; }
+
+    if (!items.length && !data.supported) {
+      group.hidden = false;
+      count.textContent = "";
+      host.innerHTML = "";
+      note.hidden = false;
+      note.textContent = `${data.limit.what} can't be listed here. ${data.limit.why}`;
+      return;
+    }
+
+    group.hidden = false;
+    note.hidden = true;
+    count.textContent = items.length === 1 ? "1 service" : `${items.length} services`;
+
+    if (state.appsCollapsed === null) {
+      state.appsCollapsed = items.length > APPS_COLLAPSE_THRESHOLD;
+    }
+    group.classList.toggle("collapsed", state.appsCollapsed);
+    const headBtn = document.getElementById("appsHead");
+    if (headBtn) headBtn.setAttribute("aria-expanded", String(!state.appsCollapsed));
+
+    host.innerHTML = items.map(a => {
+      const st = appStatus(a);
+      const on = st.cls === "is-on";
+      const sub = [a.kind, `:${a.port}`].filter(Boolean).join(" · ");
+      return `
+        <div class="card ${st.cls}" data-kind="app" data-svc="${esc(a.key)}" data-unit="${esc(a.unit)}">
+          <div class="card-row">
+            <div class="icon-sq">${I.box}</div>
+            <div class="svc-meta">
+              <div class="svc-name">${esc(a.name)}</div>
+              <div class="svc-status"><span class="dot"></span>${st.txt}</div>
+              <div class="svc-sub">${esc(sub)}</div>
+            </div>
+            <div class="svc-right">
+              ${a.serving ? `<button class="btn-open" data-act="openurl" data-url="${esc((a.reachable[0] || {}).url || "")}">Open ${I.external2}</button>` : ""}
+              ${a.serving ? addrButton(a.key) : ""}
+              <div class="toggle" data-act="apptoggle" data-unit="${esc(a.unit)}" role="switch" aria-checked="${on}"><span class="knob"></span></div>
+            </div>
+          </div>
+          ${addrPanel(a.key, a.port, a.serving)}
+        </div>`;
+    }).join("");
+  }
 
   // ---- layers -------------------------------------------------------------
   // A harness sits on top of a base service, so it gets the same card in its own
@@ -252,7 +390,7 @@
         ].filter(Boolean).join("");
 
         return `
-        <div class="card ${st.cls}" data-svc="${esc(l.key)}">
+        <div class="card ${st.cls}${state.layerOpen[l.key] ? " expanded" : ""}" data-svc="${esc(l.key)}">
           <div class="card-row">
             <div class="icon-sq">${I.hermes}</div>
             <div class="svc-meta">
@@ -261,15 +399,19 @@
             </div>
             <div class="svc-right">
               ${l.active ? `<button class="btn-open" data-act="open" data-port="9119" title="Open http://127.0.0.1:9119">Open ${I.external2}</button>` : ""}
+              ${l.active ? addrButton(l.key) : ""}
               ${l.active ? `<button class="icon-btn" data-act="lrestart" data-svc="${esc(l.key)}" title="Restart ${esc(l.name)}" aria-label="Restart ${esc(l.name)}">${I.refresh}</button>` : ""}
+              <div class="chevron" data-act="lexpand" data-key="${esc(l.key)}" title="Show details">${I.chevron}</div>
               <div class="toggle" data-act="toggle" role="switch" aria-checked="${on}"><span class="knob"></span></div>
             </div>
           </div>
+          ${state.layerOpen[l.key] ? `
           <div class="layer-body">
             <div class="layer-dep ${depUp ? "up" : "down"}"><span class="dot"></span><span>${depTxt}</span></div>
             ${facts ? `<div class="layer-facts">${facts}</div>` : ""}
             ${layerNotes(l)}
-          </div>
+          </div>` : ""}
+          ${addrPanel(l.key, 9119, l.active)}
         </div>`;
       }).join("");
   }
@@ -421,6 +563,35 @@
       state.services[svc] = { active: turnOn, serving: turnOn, loaded: turnOn && svc === "ollama" ? "llama3.2:3b" : undefined };
       setTimeout(() => { render(); }, 400);
     }
+  }
+
+  function toggleAddr(key) {
+    if (!key) return;
+    state.addrOpen[key] = !state.addrOpen[key];
+    render();
+    renderLayers();
+    renderApps();
+  }
+
+  function copyAddress(el) {
+    const url = el.dataset.url || "";
+    if (!url) return;
+    // Through the backend rather than navigator.clipboard: the page is a
+    // file:// document in QtWebEngine, where the async clipboard API is not
+    // reliably permitted, and a copy button that silently does nothing is worse
+    // than not offering one.
+    if (backend && backend.copy_text) backend.copy_text(url);
+    el.classList.add("copied");
+    el.innerHTML = I.check;
+    setTimeout(() => { el.classList.remove("copied"); el.innerHTML = I.copy; }, 1400);
+  }
+
+  function onAppToggle(unit) {
+    const app = (state.apps.items || []).find(a => a.unit === unit);
+    if (!app) return;
+    if (!backend || !backend.set_app) { toast("Not connected to backend"); return; }
+    toast(`${app.name}: ${app.active ? "stopping…" : "starting…"}`);
+    backend.set_app(unit, !app.active);
   }
 
   function onUpdate(model) {
@@ -902,6 +1073,8 @@
     rescanBtn.innerHTML = I.refresh;
     rescanBtn.addEventListener("click", onRescan);
     document.getElementById("themeToggle").addEventListener("click", toggleTheme);
+    const appsChev = document.getElementById("appsChev");
+    if (appsChev) appsChev.innerHTML = I.chevron;
 
     document.getElementById("cards").addEventListener("click", (e) => {
       const el = e.target.closest("[data-act]");
@@ -918,6 +1091,23 @@
       else if (act === "cupdate") onComfyUpdate(el.dataset.path);
       else if (act === "open") openUrl(localServiceUrl(el.dataset.port));
       else if (act === "clog") openLogModal(el.dataset.svc);
+      else if (act === "addr") toggleAddr(el.dataset.key);
+      else if (act === "copy") copyAddress(el);
+    });
+
+    document.getElementById("apps").addEventListener("click", (e) => {
+      const el = e.target.closest("[data-act]");
+      if (!el) return;
+      const act = el.dataset.act;
+      if (act === "apptoggle") onAppToggle(el.dataset.unit);
+      else if (act === "openurl") { if (el.dataset.url) openUrl(el.dataset.url); }
+      else if (act === "addr") toggleAddr(el.dataset.key);
+      else if (act === "copy") copyAddress(el);
+    });
+
+    document.getElementById("appsHead").addEventListener("click", () => {
+      state.appsCollapsed = !state.appsCollapsed;
+      renderApps();
     });
 
     // Layers use the same actions as the service cards; the only addition is a
@@ -931,6 +1121,13 @@
       const act = el.dataset.act;
       if (act === "toggle") onToggle(svc);
       else if (act === "open") openUrl(localServiceUrl(el.dataset.port));
+      else if (act === "addr") toggleAddr(el.dataset.key);
+      else if (act === "copy") copyAddress(el);
+      else if (act === "lexpand") {
+        const k = el.dataset.key;
+        state.layerOpen[k] = !state.layerOpen[k];
+        renderLayers();
+      }
       else if (act === "lrestart") {
         if (backend && backend.restart_service) {
           toast(`${displayName(svc)}: restarting…`);
@@ -970,11 +1167,24 @@
     if (payload.models) state.models = payload.models;
     if (payload.comfyui_models) state.comfyModels = payload.comfyui_models;
     if (payload.layers) state.layers = payload.layers;
+    if (payload.apps) state.apps = payload.apps;
+    if (payload.addresses) state.addresses = payload.addresses;
     render();
     renderLayers();
+    renderApps();
+    const ai = document.getElementById("aiCount");
+    if (ai) {
+      const n = ["ollama", "openwebui", "comfyui"].filter(
+        k => (state.services[k] || {}).present !== false).length
+        + (state.layers || []).filter(l => l.present !== false).length;
+      ai.textContent = n === 1 ? "1 service" : `${n} services`;
+    }
   }
   window.__applyState = applyState;   // backend pushes here
   window.__showVer = showVersionResult;   // lets the result states be rendered for review
+  // Clears the sticky collapse choice so a test can exercise the fresh-launch
+  // decision (collapse from the count) more than once in one process.
+  window.__resetApps = () => { state.appsCollapsed = null; };
 
   // ---- boot ---------------------------------------------------------------
   function boot() {

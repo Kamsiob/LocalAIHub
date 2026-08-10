@@ -29,9 +29,26 @@
       </div>
     </header>
 
-    <main class="cards" id="cards"></main>
+    <section class="group" id="groupAI">
+      <div class="group-head">
+        <div class="group-title">Local AI</div>
+        <div class="group-count" id="aiCount"></div>
+      </div>
+      <main class="cards" id="cards"></main>
+      <section class="layers" id="layers" hidden></section>
+    </section>
 
-    <section class="layers" id="layers" hidden></section>
+    <section class="group" id="groupApps" hidden>
+      <button class="group-head is-toggle" id="appsHead" aria-expanded="true" aria-controls="apps">
+        <span class="group-title">Local Apps &amp; Services</span>
+        <span class="group-right">
+          <span class="group-count" id="appsCount"></span>
+          <span class="group-chev" id="appsChev"></span>
+        </span>
+      </button>
+      <div class="apps" id="apps"></div>
+      <div class="apps-note" id="appsNote" hidden></div>
+    </section>
 
     <section class="browse">
       <div class="browse-head">Browse &amp; download models</div>

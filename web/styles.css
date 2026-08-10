@@ -348,6 +348,100 @@ body {
 .btn-sm svg { width: 14px; height: 14px; flex: none; }
 .btn-sm:has(svg) { display: inline-flex; align-items: center; gap: 7px; }
 
+/* ---------- the two groups ----------
+   Separation is spacing and a plain strong header, not rules or tinted panels.
+   "Local AI" is first and never collapses: this is a local-AI app that grew, and
+   a large homelab underneath it must not become the thing you see first. */
+.group + .group { margin-top: 34px; }
+.group-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; padding: 0 4px 13px; width: 100%;
+}
+.group-title { font-size: 16px; font-weight: 700; letter-spacing: -.01em; color: var(--text); }
+.group-count { font-size: 12.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.group-right { display: flex; align-items: center; gap: 9px; }
+
+/* The collapsible header is a real button so it is keyboard-reachable and
+   announces its state; it just doesn't look like one. */
+button.group-head {
+  background: none; border: 0; cursor: pointer; text-align: left; font: inherit;
+  border-radius: 10px;
+}
+button.group-head:hover .group-title { color: var(--text); }
+button.group-head:hover .group-count { color: var(--text-muted); }
+.group-chev { display: grid; place-items: center; color: var(--text-faint);
+  transition: transform var(--dur) var(--ease); }
+.group-chev svg { width: 17px; height: 17px; }
+.group.collapsed .group-chev { transform: rotate(-90deg); }
+.group.collapsed .apps, .group.collapsed .apps-note { display: none; }
+
+.apps { display: flex; flex-direction: column; gap: 14px; }
+.apps-note { font-size: 12.5px; color: var(--text-faint); padding: 2px 4px; line-height: 1.6; }
+
+/* An app card is the same card, with a neutral mark: these are the user's own
+   services and the app has no business inventing a brand colour for each. */
+.card[data-kind="app"] .icon-sq {
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted);
+}
+.card[data-kind="app"] .icon-sq svg { width: 20px; height: 20px; }
+.card[data-kind="app"].is-on .icon-sq { color: var(--text); }
+/* Green rather than a neutral slate: slate sat so close to the off-track colour
+   that a running service read as stopped at a glance. This reuses the status
+   dot's own "up" colour instead of inventing a brand hue per container. */
+.card[data-kind="app"].is-on .toggle { background: linear-gradient(135deg, #3ecf83, #23a862); }
+.card[data-kind="app"].is-on::after {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ok) 22%, transparent),
+              0 0 18px 2px color-mix(in srgb, var(--ok) 14%, transparent);
+}
+.svc-sub { font-size: 12px; color: var(--text-faint); margin-top: 2px; }
+
+/* ---------- reachable-at ----------
+   Hidden until asked for. "Open" keeps working the way it always has, at
+   127.0.0.1, and this is the answer to "what do I type on my phone". */
+.addr-panel { border-top: 1px solid var(--border); padding: 11px 14px 13px; }
+.addr-head { font-size: 12px; color: var(--text-faint); text-transform: uppercase;
+  letter-spacing: .06em; font-weight: 600; padding-bottom: 8px; }
+.addr-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; flex-wrap: wrap; }
+.addr-meaning { font-size: 12.5px; color: var(--text-muted); flex: 1 1 190px; min-width: 0; }
+.addr-url {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px;
+  color: var(--text); background: var(--surface-inset); border: 1px solid var(--border);
+  border-radius: 8px; padding: 5px 9px; overflow-x: auto; white-space: nowrap;
+  flex: 1 1 auto; min-width: 0;
+}
+.addr-copy { width: 30px; height: 30px; flex: none; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+  display: grid; place-items: center; cursor: pointer; }
+.addr-copy svg { width: 14px; height: 14px; }
+.addr-copy:hover { color: var(--text); border-color: var(--border-strong); }
+.addr-copy.copied { color: var(--ok); border-color: var(--ok); }
+
+/* Narrow screens: the phone is exactly where the LAN and Tailscale addresses
+   matter, so the stacked layout has to hold up at this width rather than just
+   not break. */
+@media (max-width: 560px) {
+  .wrap { padding: 22px 14px 30px; }
+  .app-header { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .header-actions { width: 100%; flex-wrap: wrap; }
+  .card-row { flex-wrap: wrap; row-gap: 10px; }
+  .svc-right { margin-left: auto; }
+  /* The meaning takes its own line; the address and its copy button share the
+     next one. flex-basis:0 with min-width:0 is what lets a long MagicDNS URL
+     shrink and scroll inside its own box instead of shoving the button onto a
+     third line. */
+  .addr-meaning { flex-basis: 100%; }
+  .addr-url { flex: 1 1 0; }
+  .browse-row { grid-template-columns: 1fr; }
+  .link-grid { grid-template-columns: 1fr; }
+}
+
+/* A long address must scroll inside its own box, never widen the page. Without
+   this the whole body picks up a horizontal scrollbar on a phone — the width
+   where these addresses are the entire point. */
+html, body { max-width: 100%; overflow-x: hidden; }
+.addr-url { max-width: 100%; }
+.card, .group, .apps { min-width: 0; }
+
 /* ---------- layers (harnesses running on top of a base service) ----------
    Deliberately the same card as everything else: a layer is not a different
    kind of object, it just sits above one. What separates it is position (its
