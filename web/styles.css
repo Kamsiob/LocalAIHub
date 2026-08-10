@@ -381,6 +381,27 @@ body {
 .layer-note ul { margin: 6px 0 0 16px; padding: 0; }
 .layer-note li { margin: 3px 0; }
 
+/* ---------- app version check (About panel only) ----------
+   Kept deliberately unlike the model and tool update controls: those live on
+   cards as small accent buttons that start a download. This is a plain outline
+   button in a quiet panel that starts nothing, and it says so above itself. */
+.ver-box { background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 14px; padding: 14px 16px; }
+.ver-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.ver-now { font-size: 13.5px; color: var(--text); font-weight: 600; }
+.ver-now span { color: var(--text-muted); font-weight: 500; }
+.ver-disclosure { font-size: 12px; color: var(--text-faint); line-height: 1.6; margin-top: 10px; }
+.ver-result { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px;
+  padding: 11px 13px; border-radius: 12px; font-size: 13px; line-height: 1.6;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); }
+.ver-result svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--text-faint); }
+.ver-result b { color: var(--text); font-weight: 600; }
+.ver-result.newer { border-color: color-mix(in srgb, var(--ollama) 40%, transparent);
+  background: color-mix(in srgb, var(--ollama) 8%, transparent); color: var(--text); }
+.ver-result.newer svg { color: var(--ollama); }
+.ver-result.current svg { color: var(--ok); }
+.ver-actions { display: flex; gap: 10px; margin-top: 11px; flex-wrap: wrap; }
+
 /* ---------- browse links ---------- */
 .browse { margin-top: 26px; }
 .browse-head { font-size: 12px; color: var(--text-faint); text-transform: uppercase;

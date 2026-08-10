@@ -31,6 +31,7 @@ else:
 WEB = ROOT / "web"
 sys.path.insert(0, str(ROOT))
 
+from hub import app_update  # noqa: E402
 from hub import config  # noqa: E402
 from hub.guide import GUIDE  # noqa: E402
 from hub.layers import build_layers  # noqa: E402
@@ -47,6 +48,7 @@ class Backend(QObject):
     notify = Signal(str)
     setup_result = Signal(str)    # JSON of a fresh setup-check run (after a fix)
     download_progress = Signal(str)  # JSON: {active, label, fraction, stage}
+    app_update_result = Signal(str)  # JSON of a user-triggered version check
 
     def __init__(self) -> None:
         super().__init__()
@@ -442,6 +444,37 @@ class Backend(QObject):
                 self.setup_result.emit(json.dumps(setup_check.run_checks()))
             except Exception:
                 pass
+        threading.Thread(target=work, daemon=True).start()
+
+    @Slot(result=str)
+    def get_app_meta(self) -> str:
+        """Version, install method and the disclosure line. No network.
+
+        Deliberately separate from check_app_update so the About panel can show
+        what the button will do without the act of opening the panel causing any
+        request at all.
+        """
+        return json.dumps({
+            "version": app_update.__version__,
+            "method": app_update.install_method(),
+            "disclosure": app_update.DISCLOSURE,
+            "releases_url": app_update.RELEASES_PAGE,
+        })
+
+    @Slot()
+    def check_app_update(self) -> None:
+        """The only thing in the app that contacts GitHub about the app itself,
+        and only from a button press. Runs off the UI thread; the result arrives
+        on app_update_result as one of three settled states."""
+        def work() -> None:
+            try:
+                res = app_update.check()
+            except Exception as exc:  # noqa: BLE001 - never surface a traceback
+                res = {"state": "error", "current": app_update.__version__,
+                       "latest": "", "method": app_update.install_method(),
+                       "advice": "", "releases_url": app_update.RELEASES_PAGE,
+                       "gearlever_url": "", "detail": f"Couldn't check ({exc})."}
+            self.app_update_result.emit(json.dumps(res))
         threading.Thread(target=work, daemon=True).start()
 
     @Slot(str)

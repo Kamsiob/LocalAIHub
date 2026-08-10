@@ -742,6 +742,16 @@
         <div class="about-lead">Local AI Hub is a free, open-source control panel for the AI services running on your own machine — <b>local-only, no accounts, no telemetry</b>.</div>
         <div class="about-note">Follow along, get help, or just say hello through the links below.</div>
 
+        <div class="about-section-label">This app</div>
+        <div class="ver-box">
+          <div class="ver-row">
+            <div class="ver-now">Version <span id="verNow">—</span></div>
+            <button class="btn-sm" id="verBtn">Check for a newer version</button>
+          </div>
+          <div class="ver-disclosure" id="verDisclosure"></div>
+          <div id="verResult"></div>
+        </div>
+
         <div class="about-section-label">Links</div>
         <div class="link-grid">
           ${linkChip("youtube",  I.youtube,  "YouTube",  "@kamsiob")}
@@ -768,8 +778,75 @@
       const a = e.target.closest("[data-act='open']");
       if (a) { e.preventDefault(); openUrl(a.dataset.url); }
     });
+    el.querySelector("#verBtn").addEventListener("click", onVersionCheck);
   }
-  function openAbout() { document.getElementById("aboutScreen").classList.add("show"); }
+
+  // ---- app version check --------------------------------------------------
+  // Reads the version and the disclosure from the backend without touching the
+  // network; the request happens only inside onVersionCheck.
+  function fillAppMeta() {
+    if (!backend || !backend.get_app_meta) return;
+    backend.get_app_meta((json) => {
+      let m; try { m = JSON.parse(json); } catch (e) { return; }
+      const now = document.getElementById("verNow");
+      const disc = document.getElementById("verDisclosure");
+      if (now) now.textContent = m.version || "—";
+      if (disc) disc.textContent = m.disclosure || "";
+    });
+  }
+
+  function onVersionCheck() {
+    const btn = document.getElementById("verBtn");
+    const out = document.getElementById("verResult");
+    if (!backend || !backend.check_app_update) {
+      if (out) out.innerHTML = `<div class="ver-result">${I.info}<div>Not connected to the backend, so there's nothing to check against.</div></div>`;
+      return;
+    }
+    // A button that can't be pressed twice and says what it's doing beats a
+    // spinner that could sit there forever; the backend always answers.
+    btn.disabled = true;
+    btn.textContent = "Checking…";
+    out.innerHTML = "";
+    backend.check_app_update();
+  }
+
+  function showVersionResult(r) {
+    const btn = document.getElementById("verBtn");
+    const out = document.getElementById("verResult");
+    if (btn) { btn.disabled = false; btn.textContent = "Check for a newer version"; }
+    if (!out) return;
+
+    const actions = [];
+    if (r.state === "newer") {
+      // Flatpak users are pointed at their store, never at a download: an app
+      // that updates itself is exactly what Flathub rejects.
+      if (r.method !== "flatpak") {
+        actions.push(`<button class="btn-sm" data-act="open" data-url="${esc(r.release_url || r.releases_url)}">Open the releases page ${I.external2}</button>`);
+      }
+      if (r.gearlever_url) {
+        actions.push(`<button class="btn-sm" data-act="open" data-url="${esc(r.gearlever_url)}">About GearLever ${I.external2}</button>`);
+      }
+    }
+
+    let icon = I.info, cls = "", body = "";
+    if (r.state === "newer") {
+      // Not I.spark — that one is hardcoded white for the brand mark and would
+      // vanish on the light theme.
+      icon = I.refresh; cls = "newer";
+      body = `<b>Version ${esc(r.latest)} is available.</b> You have ${esc(r.current)}. ${esc(r.advice || "")}`;
+    } else if (r.state === "current") {
+      icon = I.check; cls = "current";
+      body = `<b>You're on the latest version</b> (${esc(r.current)}).`;
+    } else {
+      body = `<b>Couldn't check right now.</b> ${esc(r.detail || "")} Your installed version is ${esc(r.current)}.`;
+      actions.push(`<button class="btn-sm" data-act="open" data-url="${esc(r.releases_url)}">Open the releases page ${I.external2}</button>`);
+    }
+
+    out.innerHTML = `<div class="ver-result ${cls}">${icon}<div>${body}</div></div>` +
+      (actions.length ? `<div class="ver-actions">${actions.join("")}</div>` : "");
+  }
+
+  function openAbout() { fillAppMeta(); document.getElementById("aboutScreen").classList.add("show"); }
 
   function buildProgressBar() {
     const el = document.createElement("div");
@@ -909,6 +986,9 @@
         if (backend.notify) backend.notify.connect((msg) => toast(msg));
         if (backend.download_progress) backend.download_progress.connect((json) => {
           try { updateProgress(JSON.parse(json)); } catch (e) {}
+        });
+        if (backend.app_update_result) backend.app_update_result.connect((json) => {
+          try { showVersionResult(JSON.parse(json)); } catch (e) {}
         });
         if (backend.setup_result) backend.setup_result.connect((json) => {
           if (document.getElementById("setupModal").classList.contains("show")) {
