@@ -71,7 +71,7 @@ at the repo root. It currently pins the OLD MIT commit. Two edits:
       - type: git
         url: https://github.com/kamsiob/LocalAIHub.git
         tag: v1.2.0
-        commit: d92521a0e03359ca7fe02f8170cdf18d6eff8c87
+        commit: 60a255a3d5b50fbfb53c40cd2ad2a280f38f6fe2
 ```
 
 (The copy in this repo, `flatpak/io.github.kamsiob.LocalAIHub.yaml`, is **already**
@@ -134,24 +134,23 @@ have to be re-derived under review:
 - **The app still never self-updates.** 1.2.0 adds a version *check*, and the
   Flatpak build's result explicitly points at the user's app store with no
   download button. Worth mentioning unprompted if update handling comes up.
-- **Screenshots.** `assets/screenshot-{dark,light}.png` predate 1.2.0 and show
-  no layers section. They are referenced by the MetaInfo, so refresh them
-  before the store listing goes live; the listing is not blocked on it, but
-  stale shots are a poor first impression.
+- **Screenshots.** `assets/screenshot-{dark,light}.png` were regenerated for
+  1.2.0 and show the layers section, so the MetaInfo references are current.
+  Nothing to do here unless the layout changes again.
 
 ## Do NOT
 
 - **Do not open a new PR.** Revive the existing **#9414** by fixing it + commenting
   (the bot rejects new/duplicate PRs).
 - **Do not pin the v1.0.0 MIT commit** (`67f71f1`) — that would make the store show
-  the wrong license. Use **v1.2.0 / d92521a**.
+  the wrong license. Use **v1.2.0 / 60a255a**.
 
 ## Key facts (copy-paste)
 
 - App ID: `io.github.kamsiob.LocalAIHub`
 - Flathub PR: https://github.com/flathub/flathub/pull/9414  (state: CLOSED)
 - Fork + branch: `kamsiob/flathub` @ `io.github.kamsiob.LocalAIHub`
-- Tag/commit to pin: `v1.2.0` / `d92521a0e03359ca7fe02f8170cdf18d6eff8c87`
+- Tag/commit to pin: `v1.2.0` / `60a255a3d5b50fbfb53c40cd2ad2a280f38f6fe2`
 - Expected remaining linter error after fixes: `finish-args-systemd1-talk-name`
   (the systemd permission — justified in `flatpak/PACKAGING-NOTES.md`, resolved by
   a reviewer exception, not by removing it).
