@@ -341,6 +341,12 @@ body {
 .btn-sm:hover { background: var(--surface-2); }
 .btn-sm:active { transform: scale(.96); }
 .btn-sm[disabled] { opacity: .5; cursor: default; }
+/* An inline <svg> carrying only a viewBox has no intrinsic size, so without
+   this it lays out at the SVG default of 300x150 and the button becomes the
+   size of the panel. Sized here on .btn-sm itself rather than per-context, so
+   any future button with an icon in it is correct by default. */
+.btn-sm svg { width: 14px; height: 14px; flex: none; }
+.btn-sm:has(svg) { display: inline-flex; align-items: center; gap: 7px; }
 
 /* ---------- layers (harnesses running on top of a base service) ----------
    Deliberately the same card as everything else: a layer is not a different

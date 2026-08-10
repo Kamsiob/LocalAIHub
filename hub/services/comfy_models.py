@@ -23,7 +23,7 @@ import urllib.request
 from pathlib import Path
 from typing import Callable, Optional
 
-from .. import config
+from .. import config, net
 from .comfyui import COMFYUI_ROOT, MODEL_CATEGORIES, MODEL_EXTS, MODELS_DIR, _human_size
 
 GGUF_NODE_DIR = COMFYUI_ROOT / "custom_nodes" / "ComfyUI-GGUF"
@@ -78,15 +78,19 @@ def _request(url: str, method: str = "GET", headers: Optional[dict] = None,
     if headers:
         hdrs.update(headers)
     req = urllib.request.Request(url, method=method, headers=hdrs)
+    # The context comes from hub.net so Civitai and Hugging Face still verify in
+    # the AppImage, whose bundled OpenSSL otherwise looks for CA certificates in
+    # the build distro's directory and finds nothing.
+    https = urllib.request.HTTPSHandler(context=net.ssl_context())
     if follow:
-        opener = urllib.request.build_opener()
+        opener = urllib.request.build_opener(https)
     else:
         # A no-redirect opener so we can read the *first* response headers
         # (Hugging Face puts X-Linked-Etag = sha256 there, before the CDN hop).
         class _NoRedirect(urllib.request.HTTPRedirectHandler):
             def redirect_request(self, *a, **k):
                 return None
-        opener = urllib.request.build_opener(_NoRedirect)
+        opener = urllib.request.build_opener(https, _NoRedirect)
     return opener.open(req, timeout=timeout)
 
 

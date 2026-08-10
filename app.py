@@ -518,7 +518,32 @@ class MainWindow(QMainWindow):
         self.watcher.changed.connect(self.backend.request_refresh)
 
 
+def _network_selftest() -> int:
+    """`--self-test-network`: report the trust store and run one real check.
+
+    Exists because the only way to confirm HTTPS works in a *built* AppImage is
+    to make the built AppImage say so. The 1.2.0 build shipped an OpenSSL that
+    looked for CA certificates in the build distro's directory, which meant
+    every HTTPS request failed on every other distro, and nothing short of
+    running the real binary would have caught it.
+    """
+    from hub import net
+
+    store = net.trust_store()
+    print(f"install method : {app_update.install_method()}")
+    print(f"version        : {app_update.__version__}")
+    print(f"trust store    : {store or '(none found)'}")
+    res = app_update.check()
+    print(f"check state    : {res['state']}")
+    print(f"latest         : {res.get('latest') or '-'}")
+    if res.get("detail"):
+        print(f"detail         : {res['detail']}")
+    return 0 if res["state"] in ("newer", "current") else 1
+
+
 def main() -> int:
+    if "--self-test-network" in sys.argv:
+        return _network_selftest()
     app = QApplication(sys.argv)
     app.setApplicationName("Local AI Hub")
     # Associates the window with local-ai-hub.desktop so KDE/Wayland groups it

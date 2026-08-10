@@ -16,11 +16,12 @@ from __future__ import annotations
 import json
 import os
 import re
+import ssl
 import sys
 import urllib.error
 import urllib.request
 
-from . import __version__
+from . import __version__, net
 
 REPO = "kamsiob/LocalAIHub"
 LATEST_API = f"https://api.github.com/repos/{REPO}/releases/latest"
@@ -104,15 +105,38 @@ def check(timeout: float = 12.0) -> dict:
                  "User-Agent": f"LocalAIHub/{__version__}"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with net.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode("utf-8") or "{}")
     except urllib.error.HTTPError as exc:
         result["detail"] = (
             "GitHub hasn't published a release yet." if exc.code == 404
             else f"GitHub replied {exc.code}.")
         return result
+    except ssl.SSLError as exc:
+        # Reported separately because it is emphatically not a network problem,
+        # and saying "couldn't reach github.com" on a machine with a working
+        # connection sends people to debug the wrong thing entirely.
+        result["detail"] = (
+            "The secure connection couldn't be verified"
+            f"{' (no CA certificates found on this system)' if not net.trust_store() else ''}."
+        )
+        result["error_kind"] = "tls"
+        return result
+    except urllib.error.URLError as exc:
+        reason = getattr(exc, "reason", None)
+        if isinstance(reason, ssl.SSLError):
+            result["detail"] = (
+                "The secure connection couldn't be verified"
+                f"{' (no CA certificates found on this system)' if not net.trust_store() else ''}."
+            )
+            result["error_kind"] = "tls"
+        else:
+            result["detail"] = "Couldn't reach github.com."
+            result["error_kind"] = "network"
+        return result
     except Exception:
         result["detail"] = "Couldn't reach github.com."
+        result["error_kind"] = "network"
         return result
 
     latest = (data.get("tag_name") or data.get("name") or "").strip()

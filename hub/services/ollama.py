@@ -19,6 +19,7 @@ from typing import Callable, Optional
 
 OLLAMA_REGISTRY = "https://registry.ollama.ai/v2"
 
+from .. import net
 from .base import Service
 
 OLLAMA_HOST = "http://127.0.0.1:11434"
@@ -143,7 +144,10 @@ class OllamaService(Service):
         req = urllib.request.Request(
             url, headers={"Accept": "application/vnd.docker.distribution.manifest.v2+json"})
         try:
-            with urllib.request.urlopen(req, timeout=20) as resp:
+            # net.urlopen, not urllib's: the registry is the one HTTPS call here,
+            # and in the AppImage the bundled OpenSSL has no usable trust store
+            # of its own. See hub/net.py.
+            with net.urlopen(req, timeout=20) as resp:
                 body = resp.read()
         except urllib.error.HTTPError as exc:
             if exc.code == 404:

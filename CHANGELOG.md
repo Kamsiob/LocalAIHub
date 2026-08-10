@@ -5,6 +5,32 @@ All notable changes to Local AI Hub are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] — 2026-08-10
+
+### Fixed
+- **Every HTTPS request failed in the AppImage and standalone builds on any
+  non-Debian system.** Those builds bundle their own OpenSSL, compiled on
+  Ubuntu, which has Ubuntu's certificate directory (`/usr/lib/ssl/certs`) baked
+  in as its default. That path doesn't exist on Fedora, Bazzite, Arch or
+  openSUSE, and no CA bundle shipped inside the build, so the trust store came
+  up empty and certificate verification failed for everything: the new version
+  check, Ollama model update checks, and Civitai / Hugging Face lookups. The
+  builds now locate the host's real trust store at runtime
+  (`hub/net.py`). Running from source was never affected, which is why it
+  passed testing.
+- The version check reported a certificate failure as "Couldn't reach
+  github.com", sending you to debug a network that was working fine. TLS
+  failures are now named as TLS failures.
+- A button with an icon in it rendered at roughly the width of the panel. An
+  inline `<svg>` with only a `viewBox` has no intrinsic size, so it laid out at
+  the SVG default of 300×150; `.btn-sm svg` is now sized like every other icon.
+
+### Added
+- `--self-test-network`, which prints the install method, the trust store in
+  use, and the result of one real version check. The bug above could only be
+  caught by running the built binary, so the built binary can now report on
+  itself.
+
 ## [1.2.0] — 2026-08-10
 
 ### Added
@@ -97,6 +123,7 @@ WebUI, and ComfyUI — built and verified on Bazzite with AMD Strix Halo hardwar
 - **Distribution** — a portable AppImage and a standalone (no-Python) build, plus
   a Flatpak that controls the host systemd services over D-Bus inside the sandbox.
 
+[1.2.1]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.2.1
 [1.2.0]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.2.0
 [1.1.0]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.1.0
 [1.0.0]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.0.0

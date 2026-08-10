@@ -974,6 +974,7 @@
     renderLayers();
   }
   window.__applyState = applyState;   // backend pushes here
+  window.__showVer = showVersionResult;   // lets the result states be rendered for review
 
   // ---- boot ---------------------------------------------------------------
   function boot() {
