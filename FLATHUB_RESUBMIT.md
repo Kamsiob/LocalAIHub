@@ -26,6 +26,13 @@ mandatory, and it can ONLY be attached through **GitHub's web UI by drag-and-dro
 (into the PR description or a comment). **There is no CLI/API way to upload a
 video** — so this step is the human's, and everything else waits on it.
 
+Record it against **1.2.0 or later**, not the old 1.1.0 dev build. Two things in
+1.2.0 are worth a couple of seconds each on camera because they are the app's
+best answer to "why does this need systemd access": toggling a service, and the
+"Not installed" card appearing or disappearing on its own when a tool is added
+or removed. Skip the Hermes section unless it happens to be on screen — it is
+not part of the pitch and its absence is normal for a reviewer's machine.
+
 Test-launch the Flatpak first: `flatpak run io.github.kamsiob.LocalAIHub`
 (a local dev build is installed; if it's gone, rebuild per the steps in
 `flatpak/PACKAGING-NOTES.md`).
@@ -57,14 +64,14 @@ app repo — it's the one in the **`kamsiob/flathub` fork**, branch
 **`io.github.kamsiob.LocalAIHub`**, file **`io.github.kamsiob.LocalAIHub.yaml`**
 at the repo root. It currently pins the OLD MIT commit. Two edits:
 
-**1. Repin to the AGPL release** (so the store listing shows AGPLv3, not MIT):
+**1. Repin to the current release** (so the store listing shows AGPLv3, not MIT):
 
 ```yaml
     sources:
       - type: git
         url: https://github.com/kamsiob/LocalAIHub.git
-        tag: v1.1.0
-        commit: d656290638ca8410df4754ea2c605c1c53a9b6a0
+        tag: v1.2.0
+        commit: d92521a0e03359ca7fe02f8170cdf18d6eff8c87
 ```
 
 (The copy in this repo, `flatpak/io.github.kamsiob.LocalAIHub.yaml`, is **already**
@@ -78,7 +85,7 @@ item-4 gate — a real requirement: *"License files installed to
       - install -Dm644 LICENSE ${FLATPAK_DEST}/share/licenses/io.github.kamsiob.LocalAIHub/LICENSE
 ```
 
-The AGPL `LICENSE` is already in the `v1.1.0` tag, so this needs **no new tag**.
+The AGPL `LICENSE` is already in the `v1.2.0` tag, so this needs **no new tag**.
 After both edits, re-lint: `flatpak run --command=flatpak-builder-lint
 org.flatpak.Builder manifest io.github.kamsiob.LocalAIHub.yaml` — the only
 remaining error should be `finish-args-systemd1-talk-name` (expected; see below).
@@ -104,19 +111,47 @@ remaining error should be `finish-args-systemd1-talk-name` (expected; see below)
    Every permission's justification is in `flatpak/PACKAGING-NOTES.md`; answer the
    reviewer from there.
 
+## What 1.2.0 changed for this submission
+
+Nothing in the manifest beyond the pin. Recorded here so the question doesn't
+have to be re-derived under review:
+
+- **No new `finish-args`.** The three 1.2.0 features run inside the permissions
+  already requested, or don't run at all. Live install detection uses systemd
+  signals over the existing `--talk-name=org.freedesktop.systemd1`, plus inotify
+  on `~/ComfyUI`, which `--filesystem=~/ComfyUI` already covers. The version
+  check uses the existing `--share=network`. The Hermes layer talks to
+  127.0.0.1 over that same network permission and controls its unit over the
+  same D-Bus name.
+- **Two things degrade in the sandbox on purpose, rather than asking for more
+  access.** Watching `~/.config/systemd/user` and
+  `~/.config/containers/systemd` is not possible without a broader filesystem
+  grant, so under Flatpak install detection leans on the D-Bus signals alone.
+  Reading the model Hermes is configured against needs `podman`, which the
+  sandbox has no route to; the app states that limit in place instead. Neither
+  is worth a permission request, and a reviewer asking "why does it need X"
+  should be told these were declined deliberately.
+- **The app still never self-updates.** 1.2.0 adds a version *check*, and the
+  Flatpak build's result explicitly points at the user's app store with no
+  download button. Worth mentioning unprompted if update handling comes up.
+- **Screenshots.** `assets/screenshot-{dark,light}.png` predate 1.2.0 and show
+  no layers section. They are referenced by the MetaInfo, so refresh them
+  before the store listing goes live; the listing is not blocked on it, but
+  stale shots are a poor first impression.
+
 ## Do NOT
 
 - **Do not open a new PR.** Revive the existing **#9414** by fixing it + commenting
   (the bot rejects new/duplicate PRs).
 - **Do not pin the v1.0.0 MIT commit** (`67f71f1`) — that would make the store show
-  the wrong license. Use **v1.1.0 / d656290**.
+  the wrong license. Use **v1.2.0 / d92521a**.
 
 ## Key facts (copy-paste)
 
 - App ID: `io.github.kamsiob.LocalAIHub`
 - Flathub PR: https://github.com/flathub/flathub/pull/9414  (state: CLOSED)
 - Fork + branch: `kamsiob/flathub` @ `io.github.kamsiob.LocalAIHub`
-- AGPL tag/commit to pin: `v1.1.0` / `d656290638ca8410df4754ea2c605c1c53a9b6a0`
+- Tag/commit to pin: `v1.2.0` / `d92521a0e03359ca7fe02f8170cdf18d6eff8c87`
 - Expected remaining linter error after fixes: `finish-args-systemd1-talk-name`
   (the systemd permission — justified in `flatpak/PACKAGING-NOTES.md`, resolved by
   a reviewer exception, not by removing it).
