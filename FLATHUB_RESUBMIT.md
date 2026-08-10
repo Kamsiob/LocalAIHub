@@ -33,9 +33,16 @@ best answer to "why does this need systemd access": toggling a service, and the
 or removed. Skip the Hermes section unless it happens to be on screen — it is
 not part of the pitch and its absence is normal for a reviewer's machine.
 
-Test-launch the Flatpak first: `flatpak run io.github.kamsiob.LocalAIHub`
-(a local dev build is installed; if it's gone, rebuild per the steps in
-`flatpak/PACKAGING-NOTES.md`).
+**There is no Flatpak installed right now.** The old 1.1.0 dev build was removed
+in the 1.2.0 cleanup — it was pinned to a `localaihub-origin` remote pointing at
+a build cache that no longer existed, so it could never have been updated. Build
+a fresh one at 1.2.0 before recording, per `flatpak/PACKAGING-NOTES.md`, then
+test-launch it with `flatpak run io.github.kamsiob.LocalAIHub`.
+
+The only Local AI Hub installed on the machine today is the 1.2.0 AppImage at
+`~/Applications/local-ai-hub-1.2.0-x86_64.AppImage`, which the app-menu entry
+points at. An AppImage recording will not satisfy checklist item 2 — it asks
+specifically for the app running as a Flatpak.
 
 ## The official checklist (5 items) and its exact state
 
