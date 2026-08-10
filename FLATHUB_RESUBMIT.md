@@ -26,23 +26,29 @@ mandatory, and it can ONLY be attached through **GitHub's web UI by drag-and-dro
 (into the PR description or a comment). **There is no CLI/API way to upload a
 video** — so this step is the human's, and everything else waits on it.
 
-Record it against **1.2.0 or later**, not the old 1.1.0 dev build. Two things in
-1.2.0 are worth a couple of seconds each on camera because they are the app's
-best answer to "why does this need systemd access": toggling a service, and the
-"Not installed" card appearing or disappearing on its own when a tool is added
-or removed. Skip the Hermes section unless it happens to be on screen — it is
-not part of the pitch and its absence is normal for a reviewer's machine.
+Record it against **1.3.0 or later**. Worth a couple of seconds each on camera,
+because between them they are the app's whole answer to "why does this need
+systemd access": toggling a service on and off, the "Not installed" card
+appearing or disappearing by itself when a tool is added or removed, and the two
+groups with a service in each.
+
+Do not film the "Reachable at" panel — it puts this machine's LAN and Tailscale
+addresses on screen, in a video attached to a public PR.
 
 **There is no Flatpak installed right now.** The old 1.1.0 dev build was removed
 in the 1.2.0 cleanup — it was pinned to a `localaihub-origin` remote pointing at
 a build cache that no longer existed, so it could never have been updated. Build
-a fresh one at 1.2.0 before recording, per `flatpak/PACKAGING-NOTES.md`, then
+a fresh one at 1.3.0 before recording, per `flatpak/PACKAGING-NOTES.md`, then
 test-launch it with `flatpak run io.github.kamsiob.LocalAIHub`.
 
-The only Local AI Hub installed on the machine today is the 1.2.0 AppImage at
-`~/Applications/local-ai-hub-1.2.0-x86_64.AppImage`, which the app-menu entry
+The only Local AI Hub installed on the machine today is the 1.3.0 AppImage at
+`~/Applications/local-ai-hub-1.3.0-x86_64.AppImage`, which the app-menu entry
 points at. An AppImage recording will not satisfy checklist item 2 — it asks
 specifically for the app running as a Flatpak.
+
+Expect the Flatpak build to show an **empty "Local Apps & Services" section with
+a note explaining it can't look**, because the sandbox has no route to podman.
+That is correct behaviour and worth understanding before it appears on camera.
 
 ## The official checklist (5 items) and its exact state
 
@@ -59,10 +65,12 @@ genuinely-inapplicable items (none here qualify as N/A).
 | 5 | I am an author/developer/upstream contributor | **True** — you are the author of Local AI Hub | tick |
 
 **Item 1 blurb (paste into the checklist):** Local AI Hub is a free, open-source
-control panel for the local AI services running on your own machine — Ollama,
-Open WebUI, and ComfyUI. Live status, one-toggle start/stop, and model
-management, with no terminal needed for daily use. Fully local; no account, no
-telemetry.
+control panel for the services running on your own machine. Local AI comes first
+— Ollama, Open WebUI, ComfyUI and any agent harness on top of them — and below it
+sits everything else you self-host, discovered from your rootless Podman
+containers. Live status from real liveness checks, one-toggle start/stop, model
+management, and the addresses each service is reachable at. No terminal needed
+for daily use. Fully local; no account, no telemetry.
 
 ## Manifest changes required before ticking item 4
 
@@ -77,8 +85,8 @@ at the repo root. It currently pins the OLD MIT commit. Two edits:
     sources:
       - type: git
         url: https://github.com/kamsiob/LocalAIHub.git
-        tag: v1.2.0
-        commit: 60a255a3d5b50fbfb53c40cd2ad2a280f38f6fe2
+        tag: v1.3.0
+        commit: 4ce53d1732c0e4897565fe19131a6ab800a6ded7
 ```
 
 (The copy in this repo, `flatpak/io.github.kamsiob.LocalAIHub.yaml`, is **already**
@@ -92,7 +100,7 @@ item-4 gate — a real requirement: *"License files installed to
       - install -Dm644 LICENSE ${FLATPAK_DEST}/share/licenses/io.github.kamsiob.LocalAIHub/LICENSE
 ```
 
-The AGPL `LICENSE` is already in the `v1.2.0` tag, so this needs **no new tag**.
+The AGPL `LICENSE` is already in the `v1.3.0` tag, so this needs **no new tag**.
 After both edits, re-lint: `flatpak run --command=flatpak-builder-lint
 org.flatpak.Builder manifest io.github.kamsiob.LocalAIHub.yaml` — the only
 remaining error should be `finish-args-systemd1-talk-name` (expected; see below).
@@ -118,6 +126,24 @@ remaining error should be `finish-args-systemd1-talk-name` (expected; see below)
    Every permission's justification is in `flatpak/PACKAGING-NOTES.md`; answer the
    reviewer from there.
 
+## What 1.3.0 changed for this submission
+
+**Still nothing in the manifest beyond the pin**, despite the app now managing
+more than the AI stack. That is the useful headline for a reviewer:
+
+- **Discovering and controlling other services needs no new permission.**
+  Discovery runs through `podman`, which the sandbox cannot reach — so under
+  Flatpak the section renders a note saying it can't look, and there is no
+  request for `--talk-name=org.freedesktop.Flatpak` or host filesystem access to
+  make it work. Start/stop for a discovered service goes through the *same*
+  `org.freedesktop.systemd1` name already requested, because the unit is an
+  ordinary systemd `--user` unit.
+- **Address detection needs no new permission either.** Interfaces are read with
+  an ioctl over the stdlib rather than by shelling out to `ip`, and the addresses
+  are only displayed — nothing is bound or listened on.
+- **Nothing leaves the machine.** LAN and Tailscale addresses are shown to the
+  user, never sent anywhere.
+
 ## What 1.2.0 changed for this submission
 
 Nothing in the manifest beyond the pin. Recorded here so the question doesn't
@@ -142,7 +168,8 @@ have to be re-derived under review:
   Flatpak build's result explicitly points at the user's app store with no
   download button. Worth mentioning unprompted if update handling comes up.
 - **Screenshots.** `assets/screenshot-{dark,light}.png` were regenerated for
-  1.2.0 and show the layers section, so the MetaInfo references are current.
+  1.3.0 and show both groups, so the MetaInfo references are current. There is
+  also a narrow-width shot in the README, not referenced by the MetaInfo.
   Nothing to do here unless the layout changes again.
 
 ## Do NOT
@@ -150,14 +177,14 @@ have to be re-derived under review:
 - **Do not open a new PR.** Revive the existing **#9414** by fixing it + commenting
   (the bot rejects new/duplicate PRs).
 - **Do not pin the v1.0.0 MIT commit** (`67f71f1`) — that would make the store show
-  the wrong license. Use **v1.2.0 / 60a255a**.
+  the wrong license. Use **v1.3.0 / 4ce53d1**.
 
 ## Key facts (copy-paste)
 
 - App ID: `io.github.kamsiob.LocalAIHub`
 - Flathub PR: https://github.com/flathub/flathub/pull/9414  (state: CLOSED)
 - Fork + branch: `kamsiob/flathub` @ `io.github.kamsiob.LocalAIHub`
-- Tag/commit to pin: `v1.2.0` / `60a255a3d5b50fbfb53c40cd2ad2a280f38f6fe2`
+- Tag/commit to pin: `v1.3.0` / `4ce53d1732c0e4897565fe19131a6ab800a6ded7`
 - Expected remaining linter error after fixes: `finish-args-systemd1-talk-name`
   (the systemd permission — justified in `flatpak/PACKAGING-NOTES.md`, resolved by
   a reviewer exception, not by removing it).
