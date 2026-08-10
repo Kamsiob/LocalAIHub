@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Optional
 
 OLLAMA_REGISTRY = "https://registry.ollama.ai/v2"
@@ -60,6 +62,19 @@ class OllamaService(Service):
             display_name="Ollama",
             health_url=f"{OLLAMA_HOST}/",
         )
+
+    def install_markers(self) -> list[Path]:
+        """The ollama binary itself, wherever the install script put it.
+
+        The official installer writes /usr/local/bin/ollama; distro packages use
+        /usr/bin. shutil.which covers both plus anything else on PATH. Inside
+        Flatpak none of these are visible, so presence there falls back to the
+        systemd unit — see Service.is_installed.
+        """
+        found = shutil.which("ollama")
+        candidates = [found] if found else []
+        candidates += ["/usr/local/bin/ollama", "/usr/bin/ollama"]
+        return list(dict.fromkeys(Path(c) for c in candidates))
 
     # --- HTTP helpers --------------------------------------------------------
     def _get(self, path: str, timeout: float = 10) -> dict:

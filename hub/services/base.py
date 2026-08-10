@@ -14,6 +14,7 @@ import sys
 import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Optional
 
 SYSTEMCTL = shutil.which("systemctl") or "systemctl"
@@ -27,6 +28,25 @@ def in_flatpak() -> bool:
     Native and AppImage builds return False and keep using the CLI unchanged.
     """
     return bool(os.environ.get("FLATPAK_ID"))
+
+
+def path_readable(path: Path) -> bool:
+    """Whether a negative answer from `path.exists()` can be trusted.
+
+    Outside the sandbox every path is genuinely visible, so a missing file means
+    the file is missing. Inside Flatpak the only host path this app is granted is
+    ~/ComfyUI (see finish-args in the manifest) — anything else reads as absent
+    whether it exists or not. Presence detection uses this to tell "definitely
+    not installed" apart from "can't see from in here", and falls back to the
+    systemd unit's own state for the latter rather than claiming a tool is gone.
+    """
+    if not in_flatpak():
+        return True
+    try:
+        comfy = (Path.home() / "ComfyUI").resolve()
+        return comfy == path.resolve() or comfy in path.resolve().parents
+    except OSError:
+        return False
 
 
 def host_env() -> dict:
@@ -78,7 +98,8 @@ class ServiceStatus:
     detail: str = ""
     failed: bool = False        # unit entered the systemd "failed" state (a crash)
     result: str = ""            # systemd Result (exit-code / signal / success)
-    present: bool = True        # the unit exists on this machine (LoadState=loaded)
+    present: bool = True        # the tool is installed on this machine (see below)
+    unit_loaded: bool = True    # systemd knows the unit (LoadState != not-found)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -96,6 +117,52 @@ class Service:
         self.unit = unit
         self.display_name = display_name
         self.health_url = health_url
+
+    # --- installed-or-not ----------------------------------------------------
+    # A systemd unit file outlives the thing it starts: deleting ~/ComfyUI leaves
+    # comfyui.service sitting in ~/.config/systemd/user untouched, so LoadState
+    # alone reports a long-gone tool as merely "Stopped". Each service therefore
+    # names the on-disk marker that actually proves it is installed, and presence
+    # is decided as:
+    #
+    #   running                     -> installed (whatever the files say)
+    #   a marker exists             -> installed
+    #   no marker, markers readable -> NOT installed (the honest empty state)
+    #   no marker, can't read them  -> fall back to the unit's LoadState
+    #
+    # The last line is what keeps the sandboxed Flatpak build honest: it can only
+    # see ~/ComfyUI, so for the others it defers to systemd instead of announcing
+    # that a tool it simply cannot look at has been uninstalled.
+    def install_markers(self) -> list[Path]:
+        """Paths whose existence proves this tool is installed on this machine."""
+        return []
+
+    def _marker_state(self) -> tuple[bool, bool]:
+        """(a marker exists, every marker was actually readable)."""
+        markers = self.install_markers()
+        if not markers:
+            return False, False
+        readable = True
+        for path in markers:
+            if not path_readable(path):
+                readable = False
+                continue
+            try:
+                if path.exists():
+                    return True, True
+            except OSError:
+                readable = False
+        return False, readable
+
+    def is_installed(self, unit_loaded: bool, active: bool) -> bool:
+        if active:
+            return True
+        found, readable = self._marker_state()
+        if found:
+            return True
+        if readable:
+            return False
+        return unit_loaded
 
     # --- queries -------------------------------------------------------------
     def _raw_props(self) -> dict:
@@ -176,10 +243,8 @@ class Service:
         props = self._raw_props()
         active_state = props.get("ActiveState", "")
         active = active_state == "active"
-        # LoadState=loaded means the unit exists here; not-found means the service
-        # simply isn't installed on this machine (a stranger's fresh box), which we
-        # surface honestly as "Not installed" rather than a misleading "Stopped".
-        present = props.get("LoadState", "loaded") not in ("not-found", "")
+        unit_loaded = props.get("LoadState", "loaded") not in ("not-found", "")
+        present = self.is_installed(unit_loaded, active)
         return ServiceStatus(
             name=self.display_name,
             unit=self.unit,
@@ -190,6 +255,7 @@ class Service:
             failed=active_state == "failed",
             result=props.get("Result", ""),
             present=present,
+            unit_loaded=unit_loaded,
         )
 
     # --- control -------------------------------------------------------------

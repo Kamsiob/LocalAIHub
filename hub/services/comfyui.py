@@ -63,6 +63,16 @@ class ComfyUIService(Service):
         self.root = COMFYUI_ROOT
         self.models_dir = MODELS_DIR
 
+    def install_markers(self) -> list[Path]:
+        """ComfyUI's own entry point, not the unit file that happens to start it.
+
+        main.py is what every install method leaves behind — git clone, the
+        portable release, a reinstall into the same folder — and it is what
+        disappears when the folder is deleted. ~/ComfyUI is also the one host
+        path the Flatpak build can see, so this check works in every build.
+        """
+        return [self.root / "main.py"]
+
     # --- generic installed-model scan ---------------------------------------
     def list_models(self) -> list[dict]:
         """Whatever model files are actually present in the standard folders.
