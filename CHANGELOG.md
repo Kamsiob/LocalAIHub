@@ -5,6 +5,36 @@ All notable changes to Local AI Hub are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] — 2026-08-10
+
+### Added
+- **Smart address detection.** The app now knows which addresses this machine
+  can actually be reached on — loopback always, a private-range LAN address if
+  one exists, and a `100.64.0.0/10` address plus its MagicDNS name when
+  Tailscale is up — and shows them per service under **Reachable at**, each with
+  a plain sentence about where it works. "Open" still uses `127.0.0.1`, which is
+  the right answer on this machine. Nothing is invented: an address that isn't
+  detected isn't shown. Interfaces are read over the stdlib rather than by
+  shelling out to `ip`.
+- **Local Apps & Services.** Whatever else you self-host in rootless Podman is
+  found generically, with no list of supported names — a container counts when
+  Quadlet has stamped it with a `PODMAN_SYSTEMD_UNIT` label and it publishes a
+  port. Well-known services get a proper label, anything else is shown by
+  container name and port, pods collapse to a single entry, and containers you
+  ran by hand stay out. Status is a real liveness check against the address the
+  port is published on, and start/stop goes through the same systemd path as the
+  AI stack. They appear and disappear live, via the existing watcher.
+- **Two groups.** "Local AI" on top, "Local Apps & Services" below, stacked and
+  separated by spacing rather than rules. The second group collapses and starts
+  collapsed past six services, so a large homelab doesn't bury the AI tools.
+  An empty second group is hidden entirely; a build that *cannot* look for them
+  says so instead.
+
+### Changed
+- The Hermes card folds to a single line, with the same chevron the model lists
+  use. Its details are there when you want them and out of the way when you
+  don't.
+
 ## [1.2.1] — 2026-08-10
 
 ### Fixed
@@ -123,6 +153,7 @@ WebUI, and ComfyUI — built and verified on Bazzite with AMD Strix Halo hardwar
 - **Distribution** — a portable AppImage and a standalone (no-Python) build, plus
   a Flatpak that controls the host systemd services over D-Bus inside the sandbox.
 
+[1.3.0]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.3.0
 [1.2.1]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.2.1
 [1.2.0]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.2.0
 [1.1.0]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.1.0

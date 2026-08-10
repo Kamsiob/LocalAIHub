@@ -311,6 +311,36 @@ If Hermes is only published on a remote address (a Tailscale IP, say), nothing a
 
 > ℹ️ **Note:** Hermes keeps the model and context it's pointed at inside its own container volume, which is readable only by the container's user. The app reads it through podman, so that one detail is unavailable in the sandboxed Flatpak build — it says so in place instead of showing a blank.
 
+### Your other self-hosted services
+
+Below the AI stack, Local AI Hub lists whatever else you self-host, under "Local Apps & Services". You don't configure this and there's no list of supported apps — it asks Podman what's actually running.
+
+#### What shows up, and what doesn't
+
+A container appears when two things are true: Podman Quadlet generated it (which is what gives it a systemd unit the app can start and stop), and it publishes at least one port. That second rule is why a toolbox or a container you started by hand with `podman run` stays out — there's nothing to open and nothing to check for life.
+
+A pod shows as one entry, not one per container. Immich is five containers behind a single port; five cards for one app would be noise.
+
+> ℹ️ **Note:** Recognised services get a proper name and category. Anything the app doesn't recognise is shown by its container name and port rather than guessed at — honest and usually what you called it anyway.
+
+#### Running status means running, not "exists"
+
+The status dot comes from an actual request to the address the port is published on, the same treatment the AI services get. A container can be up while the thing inside it is broken, and the app will say so rather than show a green light.
+
+### Which address works from where
+
+127.0.0.1 means "this computer". It's the right address for the Open button and completely useless typed into your phone — which is the single most common confusion with self-hosted services.
+
+Each service with a web interface has a globe button that folds out every address it's reachable at, with a sentence about where each one works:
+
+- 127.0.0.1 — only on this computer.
+- A 192.168.x.x / 10.x.x.x / 172.16-31.x.x address — other devices on the same network. Use this one on your phone at home.
+- A 100.x address or a MagicDNS name — your devices anywhere, over Tailscale. This one keeps working away from home.
+
+The app detects these rather than asking you to configure anything, and shows only what genuinely exists. No LAN address detected means none is shown.
+
+> ⚠️ **Watch out:** A service reachable on your LAN is reachable by everything else on that network. That is what makes it useful from the sofa and what makes it worth thinking about on a network you don't control. Tailscale is the private option: only your own devices, wherever they are.
+
 ### Troubleshooting
 
 The exact errors hit while building this the first time, so you can pattern-match instead of debugging blind.

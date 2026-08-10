@@ -1,10 +1,13 @@
 <h1 align="center">Local AI Hub</h1>
 
 <p align="center">
-  A premium desktop control panel for the AI services running <b>locally</b> on your machine —
-  <a href="https://ollama.com">Ollama</a>, <a href="https://openwebui.com">Open&nbsp;WebUI</a>,
-  and <a href="https://github.com/comfyanonymous/ComfyUI">ComfyUI</a>.
-  Start/stop each service, watch live status, and manage models — all from one place.
+  A desktop control panel for what you self-host on your own machine.
+  <b>Local AI</b> first — <a href="https://ollama.com">Ollama</a>,
+  <a href="https://openwebui.com">Open&nbsp;WebUI</a>,
+  <a href="https://github.com/comfyanonymous/ComfyUI">ComfyUI</a>, and agent harnesses on top —
+  and below it <b>Local Apps &amp; Services</b>, whatever else you run in rootless Podman,
+  found automatically. Start/stop each one, watch live status, manage models,
+  and see the address that actually works from your phone.
 </p>
 
 <p align="center">
@@ -15,9 +18,14 @@
 </p>
 
 <p align="center">
-  <img src="assets/screenshot-dark.png" alt="Local AI Hub — dark theme" width="380">
+  <img src="assets/screenshot-dark.png" alt="Local AI Hub — dark theme, showing the Local AI and Local Apps &amp; Services groups" width="380">
   &nbsp;
-  <img src="assets/screenshot-light.png" alt="Local AI Hub — light theme" width="380">
+  <img src="assets/screenshot-light.png" alt="Local AI Hub — light theme, showing the Local AI and Local Apps &amp; Services groups" width="380">
+</p>
+<p align="center">
+  <img src="assets/screenshot-narrow.png" alt="Local AI Hub at a narrow window width" width="240">
+  <br>
+  <sub>The stacked layout at a narrow width — the same place the LAN and Tailscale addresses matter most.</sub>
 </p>
 
 > **Everything stays local. No accounts, no telemetry, no analytics, nothing phones home.**
@@ -46,8 +54,11 @@ full manual walkthrough (every command verified against a working machine).
 
 ## ✨ Features
 
-- **One toggle per service** — start/stop Ollama, Open WebUI, ComfyUI (systemd `--user`), live status.
+- **Two clear groups** — **Local AI** on top (the tools this app is about), **Local Apps & Services** below. The second group collapses, and starts collapsed past six services, so a big homelab never buries the AI stack.
+- **Your other self-hosted services, found automatically** — the app asks Podman what's actually running rather than checking a list of supported names, so your Jellyfin or Nextcloud shows up the same way. Well-known services get a proper label; anything else is shown honestly by container name and port. Pods collapse to one entry, and containers you ran by hand stay out.
+- **One toggle per service** — start/stop anything in either group (systemd `--user`), live status from a real liveness check, not just "the container exists".
 - **Open in browser** — one click to each running web UI, always via `127.0.0.1` (never `localhost`).
+- **Reachable at** — the address that works from your *phone*. The app detects what this machine actually has (LAN, Tailscale with its MagicDNS name) and shows each one with a plain-language note about where it works. Nothing is invented; undetected means not shown.
 - **Ollama model manager** — installed models with size, an **in-memory vs on-disk** badge, and a real `ollama pull` **Update**.
 - **ComfyUI model manager** — lists what's in your model folders by type; **install** new models from a Hugging Face / Civitai / direct link (download → verify → filed in the right folder); per-model **Update** once a source is set.
 - **Setup Check** — one panel that verifies the iGPU flags, the Open WebUI Quadlet, the gfx1151 ROCm build, and the GGUF node — with safe one-click fixes.
@@ -82,6 +93,8 @@ entry that runs the app through the venv — double-clicking just works.
 - **Backend** — `hub/services/` controls each service via `systemctl --user` + HTTP probes; Ollama uses its REST API, ComfyUI model provenance/updates live in `hub/services/comfy_models.py`. Stdlib only.
 - **Layers** — `hub/layers/` holds harnesses that run on top of a base service. A `Layer` is a `Service` plus the key of what it depends on, so control and status are inherited; adding another harness means a subclass and one line in `LAYER_CLASSES`.
 - **Change detection** — `hub/services/watch.py` reconciles on systemd D-Bus signals and inotify rather than polling for installs.
+- **Discovery** — `hub/services/containers.py` enumerates rootless Podman containers, keyed on the `PODMAN_SYSTEMD_UNIT` label Quadlet writes; that label is also what start/stop uses, so discovered services go through the same `Service` class (and the same Flatpak D-Bus path) as everything else.
+- **Addresses** — `hub/addresses.py` reads interfaces through an ioctl over the stdlib rather than shelling out to `ip`, so it works with no external binary.
 - **Adapting to another machine** — service unit names and ports are in `hub/services/*.py` (`unit=` / `health_url=`).
 
 ## 📄 License

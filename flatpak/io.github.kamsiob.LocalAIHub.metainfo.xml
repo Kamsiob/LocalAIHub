@@ -5,7 +5,7 @@
   <project_license>AGPL-3.0-or-later</project_license>
 
   <name>Local AI Hub</name>
-  <summary>Control panel for your local AI stack</summary>
+  <summary>Control panel for the services you self-host</summary>
 
   <developer id="com.kamsiob">
     <name>Kamsiob</name>
@@ -13,22 +13,25 @@
 
   <description>
     <p>
-      Local AI Hub is a free, open-source control panel for the AI services running
-      on your own machine — Ollama, Open WebUI, and ComfyUI. It puts everything in
-      one window so you don't need a terminal for day-to-day use.
+      Local AI Hub is a free, open-source control panel for the services running on
+      your own machine. Local AI comes first — Ollama, Open WebUI, ComfyUI, and any
+      agent harness running on top of them — and below it sits everything else you
+      self-host, found automatically from your rootless Podman containers. It puts
+      them in one window so you don't need a terminal for day-to-day use.
     </p>
     <p>What it does:</p>
     <ul>
       <li>See what's running at a glance, with live status for each service.</li>
       <li>Start and stop each tool with a single toggle.</li>
       <li>Manage your models — update, install, and remove them.</li>
+      <li>See the address each service is reachable at, including from your phone.</li>
       <li>Plain-language alerts when a service crashes, with a one-click log view.</li>
       <li>A built-in Getting Started guide.</li>
     </ul>
     <p>
       Everything stays local. There's no account, no tracking, and no telemetry.
-      The only network use is the model update checks and downloads you explicitly
-      click.
+      The only network use is the model update checks, the downloads, and the version
+      check you explicitly click.
     </p>
     <p>
       It was built and verified on Bazzite with AMD Strix Halo hardware. Other
@@ -72,6 +75,12 @@
   <content_rating type="oars-1.1" />
 
   <releases>
+    <release version="1.3.0" date="2026-08-10">
+      <description>
+        <p>The app now covers everything you self-host, in two groups: Local AI on top, and Local Apps and Services below, found automatically from your rootless Podman containers.</p>
+        <p>Each service shows the addresses it is actually reachable at, including your LAN and Tailscale, so you know what to type on a phone.</p>
+      </description>
+    </release>
     <release version="1.2.1" date="2026-08-10">
       <description>
         <p>Fixes HTTPS in the AppImage and standalone builds on non-Debian systems, where the bundled OpenSSL found no certificate store and every network request failed verification.</p>

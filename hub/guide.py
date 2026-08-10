@@ -216,6 +216,30 @@ GUIDE = {
                     ],
                 },
                 {
+                    "id": "apps",
+                    "title": "Your other self-hosted services",
+                    "blocks": [
+                        {"type": "p", "text": "Below the AI stack, Local AI Hub lists whatever else you self-host, under \"Local Apps & Services\". You don't configure this and there's no list of supported apps — it asks Podman what's actually running."},
+                        {"type": "h", "text": "What shows up, and what doesn't"},
+                        {"type": "p", "text": "A container appears when two things are true: Podman Quadlet generated it (which is what gives it a systemd unit the app can start and stop), and it publishes at least one port. That second rule is why a toolbox or a container you started by hand with `podman run` stays out — there's nothing to open and nothing to check for life."},
+                        {"type": "p", "text": "A pod shows as one entry, not one per container. Immich is five containers behind a single port; five cards for one app would be noise."},
+                        {"type": "note", "text": "Recognised services get a proper name and category. Anything the app doesn't recognise is shown by its container name and port rather than guessed at — honest and usually what you called it anyway."},
+                        {"type": "h", "text": "Running status means running, not \"exists\""},
+                        {"type": "p", "text": "The status dot comes from an actual request to the address the port is published on, the same treatment the AI services get. A container can be up while the thing inside it is broken, and the app will say so rather than show a green light."},
+                    ],
+                },
+                {
+                    "id": "addresses",
+                    "title": "Which address works from where",
+                    "blocks": [
+                        {"type": "p", "text": "127.0.0.1 means \"this computer\". It's the right address for the Open button and completely useless typed into your phone — which is the single most common confusion with self-hosted services."},
+                        {"type": "p", "text": "Each service with a web interface has a globe button that folds out every address it's reachable at, with a sentence about where each one works:"},
+                        {"type": "p", "text": "• 127.0.0.1 — only on this computer.\n• A 192.168.x.x / 10.x.x.x / 172.16-31.x.x address — other devices on the same network. Use this one on your phone at home.\n• A 100.x address or a MagicDNS name — your devices anywhere, over Tailscale. This one keeps working away from home."},
+                        {"type": "p", "text": "The app detects these rather than asking you to configure anything, and shows only what genuinely exists. No LAN address detected means none is shown."},
+                        {"type": "warn", "text": "A service reachable on your LAN is reachable by everything else on that network. That is what makes it useful from the sofa and what makes it worth thinking about on a network you don't control. Tailscale is the private option: only your own devices, wherever they are."},
+                    ],
+                },
+                {
                     "id": "troubleshooting",
                     "title": "Troubleshooting",
                     "blocks": [
