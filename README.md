@@ -21,8 +21,8 @@
 </p>
 
 > **Everything stays local. No accounts, no telemetry, no analytics, nothing phones home.**
-> The only outbound actions are the "browse models" links and model updates — and updates
-> only contact that model's own host, only when you click.
+> The only outbound actions are the "browse models" links, model updates, and the
+> "check for a newer version" button — each of which contacts one host, only when you click it.
 
 ---
 
@@ -53,6 +53,9 @@ full manual walkthrough (every command verified against a working machine).
 - **Setup Check** — one panel that verifies the iGPU flags, the Open WebUI Quadlet, the gfx1151 ROCm build, and the GGUF node — with safe one-click fixes.
 - **Crash-aware** — a service that dies shows **"Stopped unexpectedly"** with a **View log** button, not a silent gray.
 - **Live rescan** — auto + manual, so hand-added models appear without a restart.
+- **Notices installs and uninstalls while it's running** — install or remove a tool by any method and the card updates itself; the honest "Not installed" state appears and disappears without a restart. Driven by systemd D-Bus signals and filesystem watches, not by constant rescanning.
+- **Agent layers** — a harness that runs *on top of* your stack (currently [Hermes Agent](https://github.com/NousResearch/hermes-agent)) gets its own labelled section rather than being mixed in with the base services, so it's obvious what's an engine (Ollama), what's an interface (Open WebUI), and what's an agent on top. The card states its dependency in place, shows the model and context it's configured against, and flags it clearly if that model isn't installed.
+- **Check for a newer version of the app** — in About, and only when you press it. No launch check, no background timer. Flatpak installs are pointed at their app store; the app never updates itself.
 - **Light & dark** — polished, and your choice persists.
 
 ## 🖥️ Run it
@@ -77,6 +80,8 @@ entry that runs the app through the venv — double-clicking just works.
 
 - **UI** — a local web front-end (`web/`) in a `QWebEngineView` (PySide6 + QtWebEngine), wired to Python over `QWebChannel`.
 - **Backend** — `hub/services/` controls each service via `systemctl --user` + HTTP probes; Ollama uses its REST API, ComfyUI model provenance/updates live in `hub/services/comfy_models.py`. Stdlib only.
+- **Layers** — `hub/layers/` holds harnesses that run on top of a base service. A `Layer` is a `Service` plus the key of what it depends on, so control and status are inherited; adding another harness means a subclass and one line in `LAYER_CLASSES`.
+- **Change detection** — `hub/services/watch.py` reconciles on systemd D-Bus signals and inotify rather than polling for installs.
 - **Adapting to another machine** — service unit names and ports are in `hub/services/*.py` (`unit=` / `health_url=`).
 
 ## 📄 License

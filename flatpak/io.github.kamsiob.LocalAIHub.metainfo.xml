@@ -72,6 +72,13 @@
   <content_rating type="oars-1.1" />
 
   <releases>
+    <release version="1.2.0" date="2026-08-10">
+      <description>
+        <p>Installing or removing a tool is now noticed while the app is running, so the "Not installed" state appears and disappears without a restart.</p>
+        <p>Agent harnesses that run on top of the stack get their own section, showing what they depend on and which model they are configured against. Hermes Agent is supported first.</p>
+        <p>Added a check for a newer version of the app, in the About panel. It contacts the network only when pressed, and never updates the app itself — Flatpak installs are pointed at their app store.</p>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-07-20">
       <description>
         <p>Relicensed under the GNU Affero General Public License v3.0, and added an in-app license line to the About panel.</p>

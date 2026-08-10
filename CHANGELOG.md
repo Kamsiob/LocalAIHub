@@ -5,7 +5,37 @@ All notable changes to Local AI Hub are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] — 2026-08-10
+
+### Added
+- **Live install and uninstall detection.** Installing or removing Ollama, Open
+  WebUI or ComfyUI is now noticed while the app is open, so the honest "Not
+  installed" cards appear and disappear without a restart. Two event sources
+  feed it — systemd over D-Bus (`UnitNew`/`UnitRemoved`/`Reloading`/
+  `JobRemoved`, filtered to the managed units) and filesystem watches on
+  `~/.config/systemd/user`, `~/.config/containers/systemd` and the ComfyUI
+  folder. The periodic scan stays on as a safety net.
+- **A Hermes Agent layer.** Agent harnesses are shown as their own labelled
+  section on top of the base services rather than as a fourth peer, with the
+  dependency stated on the card ("Runs on Ollama — running"), the configured
+  model and context surfaced, and a clear flag when the harness points at a
+  model that isn't installed. Start/stop and restart go over the same systemd
+  path as everything else. The pattern is generic — another harness is a
+  subclass in `hub/layers/`, not a rewrite.
+- **A user-triggered check for a newer version of the app**, in the About panel.
+  It contacts GitHub only on a button press — never at launch, never on a
+  timer — and says so next to the button. Install-method aware: Flatpak users
+  are pointed at their app store (the app never self-updates), AppImage users
+  get the releases page and a note about GearLever.
+
+### Changed
+- Whether a tool is installed is now decided by something that actually
+  disappears when it's uninstalled — the `ollama` binary, the `open-webui`
+  quadlet, ComfyUI's `main.py` — instead of the systemd unit's `LoadState`. A
+  unit file outlives the thing it starts, so deleting `~/ComfyUI` used to leave
+  the app reporting a long-gone ComfyUI as merely "Stopped". Under Flatpak,
+  where only `~/ComfyUI` is visible, a marker that can't be read falls back to
+  the unit rather than claiming the tool was removed.
 
 ### Fixed
 - Start/stop failures showed a garbled toast ("failed to sta" / "failed to sto")
@@ -67,5 +97,6 @@ WebUI, and ComfyUI — built and verified on Bazzite with AMD Strix Halo hardwar
 - **Distribution** — a portable AppImage and a standalone (no-Python) build, plus
   a Flatpak that controls the host systemd services over D-Bus inside the sandbox.
 
+[1.2.0]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.2.0
 [1.1.0]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.1.0
 [1.0.0]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.0.0

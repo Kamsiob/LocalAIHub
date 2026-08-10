@@ -253,6 +253,64 @@ Open http://127.0.0.1:8188. In the startup log you should see `Device: cuda:0 Ra
 
 > ℹ️ **Note:** Local AI Hub can run ComfyUI as a systemd user service that sets exactly this same environment, so you don't have to launch the script by hand.
 
+### Agent layers (optional)
+
+Everything above is the base stack: Ollama is the engine that runs models, Open WebUI is an interface onto it, ComfyUI is its own image-generation world. An agent harness is a different kind of thing — it doesn't run a model, it drives one that Ollama is already running, which means it's dead in the water whenever Ollama is stopped.
+
+Local AI Hub shows harnesses in their own section below the services, with the dependency stated on the card, so the difference is visible rather than something you have to remember. Hermes Agent is the one it knows about today.
+
+#### Hermes Agent as a rootless quadlet
+
+Hermes runs as a container. As a Podman quadlet it becomes an ordinary systemd --user unit, which is what lets the app start and stop it the same way as everything else:
+
+```ini
+[Unit]
+Description=Hermes Agent
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=docker.io/nousresearch/hermes-agent:v2026.8.3
+ContainerName=hermes
+UserNS=keep-id
+Exec=gateway run
+
+# Loopback so this machine can reach it; add a second pair on a LAN or
+# Tailscale address if you want it from other devices.
+PublishPort=127.0.0.1:8642:8642
+PublishPort=127.0.0.1:9119:9119
+
+Volume=%h/.hermes:/opt/data
+
+Environment=API_SERVER_ENABLED=true
+Environment=API_SERVER_KEY=<your-own-generated-key>
+Environment=HERMES_DASHBOARD=1
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target
+```
+
+```bash
+systemctl --user daemon-reload
+systemctl --user start hermes
+```
+
+#### Pin the image
+
+A `:latest` tag with `AutoUpdate=registry` means the version you're running can change on a restart, without you asking. Pin a real version tag instead and move it deliberately when you want to.
+
+#### Publish on 127.0.0.1 as well as any remote address
+
+If Hermes is only published on a remote address (a Tailscale IP, say), nothing answers on loopback and the app's Open button has nowhere local to go. Publishing both keeps remote access working and gives the local machine a loopback route.
+
+> ⚠️ **Watch out:** Hermes asks for a sign-in whenever a `dashboard.basic_auth` block is set in its config.yaml — including on loopback. That's a config choice, not a bind rule: keeping it means the Open button lands on a login page, and removing it would drop authentication for remote access too. The app tells you which of the two you're in rather than guessing.
+
+> ℹ️ **Note:** Hermes keeps the model and context it's pointed at inside its own container volume, which is readable only by the container's user. The app reads it through podman, so that one detail is unavailable in the sandboxed Flatpak build — it says so in place instead of showing a blank.
+
 ### Troubleshooting
 
 The exact errors hit while building this the first time, so you can pattern-match instead of debugging blind.
