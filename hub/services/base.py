@@ -137,6 +137,16 @@ class Service:
         """Paths whose existence proves this tool is installed on this machine."""
         return []
 
+    def watch_dirs(self) -> list[Path]:
+        """Directories to watch so install/removal is noticed as it happens.
+
+        Defaults to the folders holding the markers, which is right for a binary
+        or a config file dropped into an existing directory. A service whose
+        marker lives inside a folder that is itself created and destroyed (that
+        is ComfyUI) overrides this — see ComfyUIService.watch_dirs.
+        """
+        return [m.parent for m in self.install_markers()]
+
     def _marker_state(self) -> tuple[bool, bool]:
         """(a marker exists, every marker was actually readable)."""
         markers = self.install_markers()

@@ -73,6 +73,16 @@ class ComfyUIService(Service):
         """
         return [self.root / "main.py"]
 
+    def watch_dirs(self) -> list[Path]:
+        """Watch the folder itself while it exists, its parent while it doesn't.
+
+        inotify cannot watch a path that isn't there, so noticing ComfyUI being
+        installed means watching the directory it will appear *in*. Once it
+        exists the parent is dropped again — home sees constant unrelated churn,
+        and there is no reason to reconcile on every file that lands there.
+        """
+        return [self.root] if self.root.is_dir() else [self.root.parent]
+
     # --- generic installed-model scan ---------------------------------------
     def list_models(self) -> list[dict]:
         """Whatever model files are actually present in the standard folders.

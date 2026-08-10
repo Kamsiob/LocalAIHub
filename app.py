@@ -36,6 +36,7 @@ from hub.guide import GUIDE  # noqa: E402
 from hub.services import ComfyUIService, OllamaService, OpenWebUIService  # noqa: E402
 from hub.services import comfy_models  # noqa: E402
 from hub.services import setup_check  # noqa: E402
+from hub.services.watch import ChangeWatcher  # noqa: E402
 
 
 class Backend(QObject):
@@ -57,6 +58,7 @@ class Backend(QObject):
             "comfyui": self.comfyui,
         }
         self._last_failed: dict = {}   # for one-shot "stopped unexpectedly" alerts
+        self._last_present: dict = {}  # for one-shot install/uninstall alerts
         self._ollama_updates: dict = {}   # model name -> last update-check result
 
     # --- state collection ----------------------------------------------------
@@ -81,6 +83,15 @@ class Backend(QObject):
             if is_failed and not self._last_failed.get(key):
                 self.notify.emit(f"{svc.display_name} stopped unexpectedly — check its log")
             self._last_failed[key] = is_failed
+
+            # One-shot alert when a tool is installed or removed while the app is
+            # open. Skipped on the first collect, when every service is "new".
+            is_present = bool(services[key].get("present"))
+            was_present = self._last_present.get(key)
+            if was_present is not None and is_present != was_present:
+                self.notify.emit(f"{svc.display_name} was "
+                                 f"{'installed' if is_present else 'removed'}")
+            self._last_present[key] = is_present
 
         # Ollama extras: loaded-in-memory model + installed model list
         loaded = None
@@ -378,6 +389,13 @@ class MainWindow(QMainWindow):
         self.refresh_timer.setInterval(5000)
         self.refresh_timer.timeout.connect(self.backend.request_refresh)
         self.refresh_timer.start()
+
+        # Installing or removing a tool is an edge, not a state worth polling for:
+        # the watcher reconciles the moment a unit or a folder appears or goes
+        # away, so the "Not installed" cards come and go without a restart. The
+        # timer above stays on as the safety net for anything it misses.
+        self.watcher = ChangeWatcher(self.backend._services, self)
+        self.watcher.changed.connect(self.backend.request_refresh)
 
 
 def main() -> int:
