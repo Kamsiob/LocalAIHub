@@ -73,7 +73,7 @@ ls -ld /usr/share/ollama
 # -> No such file or directory                          (home never created)
 ```
 
-So the generated service runs as the `ollama` user with a home that doesn't exist on a read-only path, it can't store models, and it never sets the iGPU flags. It looks installed but doesn't work. Disable it:
+So the generated service runs as the `ollama` user with a home that doesn't exist on a read-only path; it can't store models, and it never sets the iGPU flags. It looks installed but doesn't work. Disable it:
 
 ```bash
 sudo systemctl disable --now ollama

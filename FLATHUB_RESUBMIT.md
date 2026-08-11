@@ -21,7 +21,7 @@ with zero recall required.
 ## The one trigger that unblocks everything → the demo video (HUMAN)
 
 A short screencast of (Local) AI Hub **running as the Flatpak**, launch it, toggle
-a service on/off, open the About panel. This is checklist item 2, it is
+a service on/off, open the About panel. This is checklist item 2; it is
 mandatory, and it can ONLY be attached through **GitHub's web UI by drag-and-drop**
 (into the PR description or a comment). **There is no CLI/API way to upload a
 video**, so this step is the human's, and everything else waits on it.
@@ -36,7 +36,7 @@ Do not film the "Reachable at" panel, it puts this machine's LAN and Tailscale
 addresses on screen, in a video attached to a public PR.
 
 **There is no Flatpak installed right now.** The old 1.1.0 dev build was removed
-in the 1.2.0 cleanup, it was pinned to a `localaihub-origin` remote pointing at
+in the 1.2.0 cleanup; it was pinned to a `localaihub-origin` remote pointing at
 a build cache that no longer existed, so it could never have been updated. Build
 a fresh one at 1.3.0 before recording, per `flatpak/PACKAGING-NOTES.md`, then
 test-launch it with `flatpak run io.github.kamsiob.LocalAIHub`.
@@ -121,7 +121,7 @@ remaining error should be `finish-args-systemd1-talk-name` (expected; see below)
 5. **[CLAUDE or HUMAN]** Post a comment on #9414: the checklist is now complete,
    please reopen, optionally include `/review` to trigger the bot immediately.
 6. **[BOT / MAINTAINER + HUMAN]** The bot reopens and starts the build. Then the
-   review begins, the main topic will be `--talk-name=org.freedesktop.systemd1`.
+   review begins; the main topic will be `--talk-name=org.freedesktop.systemd1`.
    Every permission's justification is in `flatpak/PACKAGING-NOTES.md`; answer the
    reviewer from there.
 
@@ -139,7 +139,7 @@ more than the AI stack. That is the useful headline for a reviewer:
   ordinary systemd `--user` unit.
 - **Address detection needs no new permission either.** Interfaces are read with
   an ioctl over the stdlib rather than by shelling out to `ip`, and the addresses
-  are only displayed, nothing is bound or listened on.
+  are only displayed; nothing is bound or listened on.
 - **Nothing leaves the machine.** LAN and Tailscale addresses are shown to the
   user, never sent anywhere.
 
@@ -175,7 +175,7 @@ have to be re-derived under review:
 
 - **Do not open a new PR.** Revive the existing **#9414** by fixing it + commenting
   (the bot rejects new/duplicate PRs).
-- **Do not pin the v1.0.0 MIT commit** (`67f71f1`), that would make the store show
+- **Do not pin the v1.0.0 MIT commit** (`67f71f1`); that would make the store show
   the wrong license. Use **v1.3.0 / 4ce53d1**.
 
 ## Key facts (copy-paste)

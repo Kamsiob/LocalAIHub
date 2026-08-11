@@ -147,7 +147,7 @@ GUIDE = {
                         {"type": "h", "text": "Why the installer's service silently fails here"},
                         {"type": "p", "text": "The installer's service step runs `useradd -m -d /usr/share/ollama ollama`, but /usr/share is read-only on Bazzite, so that home directory is never created. You can confirm it: the user exists, yet its home doesn't."},
                         {"type": "code", "lang": "bash", "code": "getent passwd ollama\n# -> ollama:x:992:962::/usr/share/ollama:/bin/false   (user exists)\nls -ld /usr/share/ollama\n# -> No such file or directory                          (home never created)"},
-                        {"type": "p", "text": "So the generated service runs as the `ollama` user with a home that doesn't exist on a read-only path, it can't store models, and it never sets the iGPU flags. It looks installed but doesn't work. Disable it:"},
+                        {"type": "p", "text": "So the generated service runs as the `ollama` user with a home that doesn't exist on a read-only path; it can't store models, and it never sets the iGPU flags. It looks installed but doesn't work. Disable it:"},
                         {"type": "code", "lang": "bash", "code": "sudo systemctl disable --now ollama"},
                         {"type": "h", "text": "Create a user service that actually works"},
                         {"type": "p", "text": "Run Ollama as your own user (models go in ~/.ollama) with the iGPU flags:"},

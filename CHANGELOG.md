@@ -28,7 +28,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 - The README and store screenshots showed the real services, ports and endpoint
-  of the machine they were captured on, a homelab inventory that has no reason
+  of the machine they were captured on; a homelab inventory that has no reason
   to be in a public repository. They are now rendered from fixed demo data
   (`tools/shoot_readme.py`), so they show the layout without showing anyone's
   setup, and stay identical whatever is installed on the machine that builds a
@@ -48,7 +48,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - **Local Apps & Services.** Whatever else you self-host in rootless Podman is
   found generically, with no list of supported names, a container counts when
   Quadlet has stamped it with a `PODMAN_SYSTEMD_UNIT` label and it publishes a
-  port. Well-known services get a proper label, anything else is shown by
+  port. Well-known services get a proper label; anything else is shown by
   container name and port, pods collapse to a single entry, and containers you
   ran by hand stay out. Status is a real liveness check against the address the
   port is published on, and start/stop goes through the same systemd path as the
@@ -119,7 +119,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   quadlet, ComfyUI's `main.py`, instead of the systemd unit's `LoadState`. A
   unit file outlives the thing it starts, so deleting `~/ComfyUI` used to leave
   the app reporting a long-gone ComfyUI as merely "Stopped". Under Flatpak,
-  where only `~/ComfyUI` is visible, a marker that can't be read falls back to
+  where only `~/ComfyUI` is visible; a marker that can't be read falls back to
   the unit rather than claiming the tool was removed.
 
 ### Fixed
