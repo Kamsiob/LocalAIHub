@@ -577,7 +577,7 @@ class Backend(QObject):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Local AI Hub")
+        self.setWindowTitle("(Local) AI Hub")
         self.resize(760, 760)
 
         self.view = QWebEngineView(self)
@@ -631,7 +631,7 @@ def main() -> int:
     if "--self-test-network" in sys.argv:
         return _network_selftest()
     app = QApplication(sys.argv)
-    app.setApplicationName("Local AI Hub")
+    app.setApplicationName("(Local) AI Hub")
     # Associates the window with local-ai-hub.desktop so KDE/Wayland groups it
     # under the launcher icon and it can be pinned to the taskbar.
     app.setDesktopFileName("local-ai-hub")

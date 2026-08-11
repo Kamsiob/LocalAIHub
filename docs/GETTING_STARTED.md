@@ -251,13 +251,13 @@ Why each line matters:
 
 Open http://127.0.0.1:8188. In the startup log you should see `Device: cuda:0 Radeon 8060S Graphics` and `AMD arch: gfx1151` — that's the iGPU in use.
 
-> ℹ️ **Note:** Local AI Hub can run ComfyUI as a systemd user service that sets exactly this same environment, so you don't have to launch the script by hand.
+> ℹ️ **Note:** (Local) AI Hub can run ComfyUI as a systemd user service that sets exactly this same environment, so you don't have to launch the script by hand.
 
 ### Agent layers (optional)
 
 Everything above is the base stack: Ollama is the engine that runs models, Open WebUI is an interface onto it, ComfyUI is its own image-generation world. An agent harness is a different kind of thing — it doesn't run a model, it drives one that Ollama is already running, which means it's dead in the water whenever Ollama is stopped.
 
-Local AI Hub shows harnesses in their own section below the services, with the dependency stated on the card, so the difference is visible rather than something you have to remember. Hermes Agent is the one it knows about today.
+(Local) AI Hub shows harnesses in their own section below the services, with the dependency stated on the card, so the difference is visible rather than something you have to remember. Hermes Agent is the one it knows about today.
 
 #### Hermes Agent as a rootless quadlet
 
@@ -313,7 +313,7 @@ If Hermes is only published on a remote address (a Tailscale IP, say), nothing a
 
 ### Your other self-hosted services
 
-Below the AI stack, Local AI Hub lists whatever else you self-host, under "Self-Hosted Apps & Services". You don't configure this and there's no list of supported apps — it asks Podman what's actually running.
+Below the AI stack, (Local) AI Hub lists whatever else you self-host, under "Self-Hosted Apps & Services". You don't configure this and there's no list of supported apps — it asks Podman what's actually running.
 
 #### What shows up, and what doesn't
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# AppImage entry point for Local AI Hub.
+# AppImage entry point for (Local) AI Hub.
 # Locates the bundle dir, makes the bundled system libs (NSS, etc.) findable,
 # points Qt at the bundled plugins + WebEngine runtime, and launches the app.
 HERE="$(dirname "$(readlink -f "${0}")")"

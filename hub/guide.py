@@ -194,7 +194,7 @@ GUIDE = {
                         {"type": "code", "lang": "bash", "code": "cat > ~/ComfyUI/start_comfyui_rocm.sh <<'EOF'\n" + COMFY_LAUNCH + "\nEOF\nchmod +x ~/ComfyUI/start_comfyui_rocm.sh\n\n~/ComfyUI/start_comfyui_rocm.sh"},
                         {"type": "p", "text": "Why each line matters:\n• unset HSA_OVERRIDE_GFX_VERSION — a globally-set gfx override (a common tweak) makes the nightly target the wrong arch and breaks; clear it.\n• HSA_ENABLE_SDMA=0 — disables the SDMA path that triggers the crash on Strix Halo. This is the actual mitigation.\n• HIP_VISIBLE_DEVICES=0 — selects the iGPU.\n• HSA_USE_SVM=0 and PYTORCH_ALLOC_CONF=… — memory settings tuned for this shared-memory APU."},
                         {"type": "p", "text": "Open http://127.0.0.1:8188. In the startup log you should see `Device: cuda:0 Radeon 8060S Graphics` and `AMD arch: gfx1151` — that's the iGPU in use."},
-                        {"type": "note", "text": "Local AI Hub can run ComfyUI as a systemd user service that sets exactly this same environment, so you don't have to launch the script by hand."},
+                        {"type": "note", "text": "(Local) AI Hub can run ComfyUI as a systemd user service that sets exactly this same environment, so you don't have to launch the script by hand."},
                     ],
                 },
                 {
@@ -202,7 +202,7 @@ GUIDE = {
                     "title": "Agent layers (optional)",
                     "blocks": [
                         {"type": "p", "text": "Everything above is the base stack: Ollama is the engine that runs models, Open WebUI is an interface onto it, ComfyUI is its own image-generation world. An agent harness is a different kind of thing — it doesn't run a model, it drives one that Ollama is already running, which means it's dead in the water whenever Ollama is stopped."},
-                        {"type": "p", "text": "Local AI Hub shows harnesses in their own section below the services, with the dependency stated on the card, so the difference is visible rather than something you have to remember. Hermes Agent is the one it knows about today."},
+                        {"type": "p", "text": "(Local) AI Hub shows harnesses in their own section below the services, with the dependency stated on the card, so the difference is visible rather than something you have to remember. Hermes Agent is the one it knows about today."},
                         {"type": "h", "text": "Hermes Agent as a rootless quadlet"},
                         {"type": "p", "text": "Hermes runs as a container. As a Podman quadlet it becomes an ordinary systemd --user unit, which is what lets the app start and stop it the same way as everything else:"},
                         {"type": "code", "lang": "ini", "code": HERMES_QUADLET},
@@ -219,7 +219,7 @@ GUIDE = {
                     "id": "apps",
                     "title": "Your other self-hosted services",
                     "blocks": [
-                        {"type": "p", "text": "Below the AI stack, Local AI Hub lists whatever else you self-host, under \"Self-Hosted Apps & Services\". You don't configure this and there's no list of supported apps — it asks Podman what's actually running."},
+                        {"type": "p", "text": "Below the AI stack, (Local) AI Hub lists whatever else you self-host, under \"Self-Hosted Apps & Services\". You don't configure this and there's no list of supported apps — it asks Podman what's actually running."},
                         {"type": "h", "text": "What shows up, and what doesn't"},
                         {"type": "p", "text": "A container appears when two things are true: Podman Quadlet generated it (which is what gives it a systemd unit the app can start and stop), and it publishes at least one port. That second rule is why a toolbox or a container you started by hand with `podman run` stays out — there's nothing to open and nothing to check for life."},
                         {"type": "p", "text": "A pod shows as one entry, not one per container. Immich is five containers behind a single port; five cards for one app would be noise."},

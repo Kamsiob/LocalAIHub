@@ -1,4 +1,4 @@
-"""Check whether a newer Local AI Hub has been released. User-triggered only.
+"""Check whether a newer (Local) AI Hub has been released. User-triggered only.
 
 The whole point of this module is what it does *not* do. There is no timer, no
 check on launch, no cache warm-up, no "while we're online anyway". `check()` is
@@ -55,7 +55,7 @@ def install_method() -> str:
 
 _ADVICE = {
     "flatpak": ("Updates come from wherever you installed it — your app store, "
-                "or `flatpak update`. Local AI Hub never updates itself."),
+                "or `flatpak update`. (Local) AI Hub never updates itself."),
     "appimage": ("Download the new AppImage from the releases page. GearLever "
                  "can keep AppImages updated for you if you'd rather not do it "
                  "by hand."),

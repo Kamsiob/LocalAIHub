@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install Local AI Hub as a desktop app: icon (SVG + PNG sizes) + .desktop entry
+# Install (Local) AI Hub as a desktop app: icon (SVG + PNG sizes) + .desktop entry
 # into ~/.local/share, so it appears in the app launcher and can be pinned.
 # Double-clicking runs the venv Python directly — no terminal, no activation.
 set -euo pipefail
@@ -25,7 +25,7 @@ cat > "$DESK" <<EOF
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Local AI Hub
+Name=(Local) AI Hub
 GenericName=Local AI Service Manager
 Comment=Manage local AI services (Ollama, Open WebUI, ComfyUI) and their models
 Exec="$PY" "$REPO/app.py"
@@ -43,5 +43,5 @@ update-desktop-database "$DATA/applications" 2>/dev/null || true
 gtk-update-icon-cache -f -t "$HICOLOR" 2>/dev/null || true
 kbuildsycoca6 2>/dev/null || kbuildsycoca5 2>/dev/null || true
 
-echo "Done. 'Local AI Hub' should now be in your application launcher."
+echo "Done. '(Local) AI Hub' should now be in your application launcher."
 echo "  desktop file: $DESK"

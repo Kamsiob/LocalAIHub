@@ -1,6 +1,6 @@
 # Reviving the Flathub submission — runbook
 
-Everything needed to get Local AI Hub onto Flathub, from exactly where things
+Everything needed to get (Local) AI Hub onto Flathub, from exactly where things
 stand **now**. Values here are current and specific — follow it top to bottom
 with zero recall required.
 
@@ -20,7 +20,7 @@ with zero recall required.
 
 ## The one trigger that unblocks everything → the demo video (HUMAN)
 
-A short screencast of Local AI Hub **running as the Flatpak** — launch it, toggle
+A short screencast of (Local) AI Hub **running as the Flatpak** — launch it, toggle
 a service on/off, open the About panel. This is checklist item 2, it is
 mandatory, and it can ONLY be attached through **GitHub's web UI by drag-and-drop**
 (into the PR description or a comment). **There is no CLI/API way to upload a
@@ -41,7 +41,7 @@ a build cache that no longer existed, so it could never have been updated. Build
 a fresh one at 1.3.0 before recording, per `flatpak/PACKAGING-NOTES.md`, then
 test-launch it with `flatpak run io.github.kamsiob.LocalAIHub`.
 
-The only Local AI Hub installed on the machine today is the 1.3.0 AppImage at
+The only (Local) AI Hub installed on the machine today is the 1.3.0 AppImage at
 `~/Applications/local-ai-hub-1.3.0-x86_64.AppImage`, which the app-menu entry
 points at. An AppImage recording will not satisfy checklist item 2 — it asks
 specifically for the app running as a Flatpak.
@@ -62,9 +62,9 @@ genuinely-inapplicable items (none here qualify as N/A).
 | 2 | Attach a video showcasing the app as a Flatpak | **Needs the video** | **Human** (record + drag-drop) |
 | 3 | Flatpak ID follows the Application ID rules | **True** — `io.github.kamsiob.LocalAIHub` ↔ `github.com/kamsiob/LocalAIHub` (exists, 4 components) | tick |
 | 4 | Read & followed all Submission requirements + guide, and agree | **Gated** — needs the license-install line added to the manifest first (below). Then truthfully tickable. **Not optional.** | Claude adds line, Human agrees |
-| 5 | I am an author/developer/upstream contributor | **True** — you are the author of Local AI Hub | tick |
+| 5 | I am an author/developer/upstream contributor | **True** — you are the author of (Local) AI Hub | tick |
 
-**Item 1 blurb (paste into the checklist):** Local AI Hub is a free, open-source
+**Item 1 blurb (paste into the checklist):** (Local) AI Hub is a free, open-source
 control panel for the services running on your own machine. Local AI comes first
 — Ollama, Open WebUI, ComfyUI and any agent harness on top of them — and below it
 sits everything else you self-host, discovered from your rootless Podman

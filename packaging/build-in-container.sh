@@ -100,7 +100,7 @@ RUN
 chmod +x "$STAGE/run.sh"
 
 cat > "$STAGE/README.txt" <<EOF
-Local AI Hub $VERSION — standalone Linux build (no Python needed)
+(Local) AI Hub $VERSION — standalone Linux build (no Python needed)
 
 Run it:
     ./run.sh

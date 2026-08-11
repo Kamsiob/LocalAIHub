@@ -1,6 +1,6 @@
-# Flatpak manifest for Local AI Hub.
+# Flatpak manifest for (Local) AI Hub.
 #
-# Local AI Hub is a *host service manager*: it starts/stops/queries the user's
+# (Local) AI Hub is a *host service manager*: it starts/stops/queries the user's
 # systemd --user services (Ollama, Open WebUI, ComfyUI) and, outside the sandbox,
 # reads their logs. Under Flatpak it can't shell out to systemctl/journalctl, so
 # the app talks to the host user systemd manager over D-Bus (org.freedesktop.

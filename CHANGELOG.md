@@ -1,9 +1,20 @@
 # Changelog
 
-All notable changes to Local AI Hub are documented here.
+All notable changes to (Local) AI Hub are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.3.2] — 2026-08-10
+
+### Changed
+- The app is now called **(Local) AI Hub**. Display name only — the application
+  ID (`io.github.kamsiob.LocalAIHub`), the desktop entry, the icon name, the
+  `local-ai-hub` config directory and the release filenames are all unchanged,
+  so nothing about an existing install moves and your saved theme and keys stay
+  where they are.
+- The About panel described the app as a control panel for AI services, which
+  stopped being true in 1.3.0. It now names both halves.
 
 ## [1.3.1] — 2026-08-10
 
@@ -169,6 +180,7 @@ WebUI, and ComfyUI — built and verified on Bazzite with AMD Strix Halo hardwar
 - **Distribution** — a portable AppImage and a standalone (no-Python) build, plus
   a Flatpak that controls the host systemd services over D-Bus inside the sandbox.
 
+[1.3.2]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.3.2
 [1.3.1]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.3.1
 [1.3.0]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.3.0
 [1.2.1]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.2.1

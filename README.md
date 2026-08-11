@@ -1,4 +1,4 @@
-<h1 align="center">Local AI Hub</h1>
+<h1 align="center">(Local) AI Hub</h1>
 
 <p align="center">
   A desktop control panel for what you self-host on your own machine.
@@ -18,12 +18,12 @@
 </p>
 
 <p align="center">
-  <img src="assets/screenshot-dark.png" alt="Local AI Hub — dark theme, showing the Local AI and Self-Hosted Apps &amp; Services groups" width="380">
+  <img src="assets/screenshot-dark.png" alt="(Local) AI Hub — dark theme, showing the Local AI and Self-Hosted Apps &amp; Services groups" width="380">
   &nbsp;
-  <img src="assets/screenshot-light.png" alt="Local AI Hub — light theme, showing the Local AI and Self-Hosted Apps &amp; Services groups" width="380">
+  <img src="assets/screenshot-light.png" alt="(Local) AI Hub — light theme, showing the Local AI and Self-Hosted Apps &amp; Services groups" width="380">
 </p>
 <p align="center">
-  <img src="assets/screenshot-narrow.png" alt="Local AI Hub at a narrow window width" width="240">
+  <img src="assets/screenshot-narrow.png" alt="(Local) AI Hub at a narrow window width" width="240">
   <br>
   <sub>The stacked layout at a narrow width — the same place the LAN and Tailscale addresses matter most.</sub>
 </p>
@@ -99,7 +99,7 @@ entry that runs the app through the venv — double-clicking just works.
 
 ## 📄 License
 
-Local AI Hub is **free and open source** under the [GNU Affero General Public License v3.0](LICENSE)
+(Local) AI Hub is **free and open source** under the [GNU Affero General Public License v3.0](LICENSE)
 (AGPLv3). You're free to use it commercially, fork it, and modify it — but if you modify it and run
 it as a hosted or networked service, AGPLv3 requires you to release your modified source too. That
 deliberately closes the loophole a permissive license leaves open for closed, hosted forks.
@@ -118,7 +118,7 @@ Same links live inside the app, under **About** in the header.
 
 ## ☕ Support this project
 
-Local AI Hub is free and always will be. If it's useful to you and you'd like to help
+(Local) AI Hub is free and always will be. If it's useful to you and you'd like to help
 keep it going, you can buy me a coffee — entirely optional, always appreciated.
 
 <p align="center">

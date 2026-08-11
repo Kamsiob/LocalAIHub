@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Local AI Hub
+Name=(Local) AI Hub
 GenericName=Local AI Service Manager
 Comment=Manage local AI services (Ollama, Open WebUI, ComfyUI) and their models
 Exec=local-ai-hub

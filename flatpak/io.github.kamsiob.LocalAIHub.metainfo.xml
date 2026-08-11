@@ -4,7 +4,7 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>AGPL-3.0-or-later</project_license>
 
-  <name>Local AI Hub</name>
+  <name>(Local) AI Hub</name>
   <summary>Control panel for the services you self-host</summary>
 
   <developer id="com.kamsiob">
@@ -13,7 +13,7 @@
 
   <description>
     <p>
-      Local AI Hub is a free, open-source control panel for the services running on
+      (Local) AI Hub is a free, open-source control panel for the services running on
       your own machine. Local AI comes first — Ollama, Open WebUI, ComfyUI, and any
       agent harness running on top of them — and below it sits everything else you
       self-host, found automatically from your rootless Podman containers. It puts
@@ -75,6 +75,11 @@
   <content_rating type="oars-1.1" />
 
   <releases>
+    <release version="1.3.2" date="2026-08-10">
+      <description>
+        <p>The app is now called (Local) AI Hub. This is a display name change only; the application ID and everything about an existing installation are unchanged.</p>
+      </description>
+    </release>
     <release version="1.3.1" date="2026-08-10">
       <description>
         <p>Renames the second group to Self-Hosted Apps and Services, which says more clearly that it covers the services you host yourself rather than applications installed on the machine.</p>
@@ -105,7 +110,7 @@
     </release>
     <release version="1.0.0" date="2026-07-19">
       <description>
-        <p>First public release of Local AI Hub.</p>
+        <p>First public release of (Local) AI Hub.</p>
       </description>
     </release>
   </releases>

@@ -217,7 +217,7 @@ class Service:
         if in_flatpak():
             return (
                 "Viewing service logs isn't available in the sandboxed Flatpak "
-                "version of Local AI Hub — the sandbox can't read the host's "
+                "version of (Local) AI Hub — the sandbox can't read the host's "
                 "systemd journal.\n\n"
                 "For full log viewing, grab the AppImage from the releases page:\n"
                 "https://github.com/kamsiob/LocalAIHub/releases\n\n"

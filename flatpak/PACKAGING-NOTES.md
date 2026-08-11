@@ -12,7 +12,7 @@ over a multi-day back-and-forth. It is not "published" until they merge it.
 
 ## How service management works under the sandbox (implemented)
 
-Local AI Hub manages the user's **host** systemd services. A Flatpak sandbox has
+(Local) AI Hub manages the user's **host** systemd services. A Flatpak sandbox has
 no `systemctl`/`journalctl`, so the service layer (`hub/services/_systemd_dbus.py`)
 talks to the host user systemd manager over the session bus
 (`org.freedesktop.systemd1`) via QtDBus. This path is used only when `FLATPAK_ID`

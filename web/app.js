@@ -906,11 +906,11 @@
     el.id = "aboutScreen";
     el.innerHTML = `
       <div class="guide-head">
-        <div><div class="guide-title">About &amp; Links</div><div class="guide-sub">Local AI Hub · made by Kamsiob</div></div>
+        <div><div class="guide-title">About &amp; Links</div><div class="guide-sub">(Local) AI Hub · made by Kamsiob</div></div>
         <button class="btn-ghost" id="aboutClose">Close</button>
       </div>
       <div class="guide-body">
-        <div class="about-lead">Local AI Hub is a free, open-source control panel for the AI services running on your own machine — <b>local-only, no accounts, no telemetry</b>.</div>
+        <div class="about-lead">(Local) AI Hub is a free, open-source control panel for the services running on your own machine — your local AI stack, and the apps and services you self-host alongside it. <b>Local-only, no accounts, no telemetry</b>.</div>
         <div class="about-note">Follow along, get help, or just say hello through the links below.</div>
 
         <div class="about-section-label">This app</div>
