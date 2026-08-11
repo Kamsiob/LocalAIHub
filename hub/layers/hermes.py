@@ -51,7 +51,7 @@ MODEL_UNAVAILABLE = {
     "why": (
         "Hermes keeps them in config.yaml inside its container volume. "
         "~/.hermes is owned by the container's mapped user and readable only by "
-        "it, so the value has to be read through podman — which the Flatpak "
+        "it, so the value has to be read through podman, which the Flatpak "
         "sandbox has no access to."
     ),
     "options": [

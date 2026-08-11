@@ -91,7 +91,7 @@ class Backend(QObject):
             # One-shot alert when a service transitions into the failed state.
             is_failed = services[key].get("failed")
             if is_failed and not self._last_failed.get(key):
-                self.notify.emit(f"{svc.display_name} stopped unexpectedly — check its log")
+                self.notify.emit(f"{svc.display_name} stopped unexpectedly. Check its log")
             self._last_failed[key] = is_failed
 
             # One-shot alert when a tool is installed or removed while the app is

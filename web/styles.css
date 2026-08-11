@@ -454,7 +454,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 
 .layer-body { border-top: 1px solid var(--border); padding: 12px 14px 14px; }
 
-/* "Runs on Ollama — running": the dependency stated on the layer itself, so a
+/* "Runs on Ollama · running": the dependency stated on the layer itself, so a
    stopped engine explains a useless harness in place rather than two cards
    away. Reuses the card's own status dot vocabulary. */
 .layer-dep { display: flex; align-items: center; gap: 9px; font-size: 13px;

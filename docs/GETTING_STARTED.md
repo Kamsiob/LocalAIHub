@@ -1,21 +1,21 @@
 # Getting Started
 
-*Bazzite + AMD Strix Halo — a proven, from-scratch setup*
+*Bazzite + AMD Strix Halo · a proven, from-scratch setup*
 
 This guide is proven on one specific setup, from a machine with nothing installed to a full working stack. It targets:
 
-- Bazzite — or a similar immutable Fedora Atomic distro (/usr is read-only)
+- Bazzite, or a similar immutable Fedora Atomic distro (/usr is read-only)
 - An AMD Ryzen AI MAX+ 395 “Strix Halo” with the Radeon 8060S iGPU (gfx1151)
 
-> ⚠️ **Watch out:** If you're on different hardware or a different distro, this guide won't directly apply. The read-only-filesystem workarounds, the iGPU flags, and the gfx1151 ROCm build are all specific to this configuration — the shape may still help, but the exact commands are for this machine.
+> ⚠️ **Watch out:** If you're on different hardware or a different distro, this guide won't directly apply. The read-only-filesystem workarounds, the iGPU flags, and the gfx1151 ROCm build are all specific to this configuration. The shape may still help, but the exact commands are for this machine.
 
-Pick a track below. If you have an AI assistant, start with Track 1 — it's far faster. Otherwise Track 2 is the complete manual walkthrough.
+Pick a track below. If you have an AI assistant, start with Track 1, it's far faster. Otherwise Track 2 is the complete manual walkthrough.
 
 ---
 
 ## Track 1 · With an AI assistant
 
-The fastest path is to hand your assistant the hardware and distro context up front. A generic assistant won't know this hardware's quirks unless you tell it directly — the immutable filesystem that blocks the standard installer, the iGPU that's ignored by default, and the ROCm driver gap on this exact chip. Give it all of that at once so it can walk you through, instead of you discovering each issue the hard way, one at a time.
+The fastest path is to hand your assistant the hardware and distro context up front. A generic assistant won't know this hardware's quirks unless you tell it directly: the immutable filesystem that blocks the standard installer, the iGPU that's ignored by default, and the ROCm driver gap on this exact chip. Give it all of that at once so it can walk you through, instead of you discovering each issue the hard way, one at a time.
 
 #### Ready-to-paste starter prompt
 
@@ -27,7 +27,7 @@ integrated GPU (gfx1151). I have nothing AI-related installed yet.
 Please set up, with GPU acceleration on the iGPU, and verify each actually uses
 the GPU rather than falling back to CPU:
 
-  1. Ollama. Do NOT rely on the installer's default systemd service — it creates
+  1. Ollama. Do NOT rely on the installer's default systemd service. It creates
      an 'ollama' system user whose home is /usr/share/ollama, which can't be
      created on the read-only /usr, so it silently fails; and it omits the iGPU
      env vars. Instead run Ollama as a systemd *user* service that sets
@@ -40,7 +40,7 @@ the GPU rather than falling back to CPU:
      doesn't hit systemd's ~90s start timeout.
 
   3. ComfyUI in a venv, but install PyTorch from the gfx1151 ROCm *nightly*
-     (https://rocm.nightlies.amd.com/v2/gfx1151/) — the standard ROCm wheels
+     (https://rocm.nightlies.amd.com/v2/gfx1151/), because the standard ROCm wheels
      segfault on this chip (a libamdhip64 / memcpy_and_sync crash). Add the
      ComfyUI-GGUF custom node, and launch with HSA_ENABLE_SDMA=0 and
      HSA_OVERRIDE_GFX_VERSION unset.
@@ -48,7 +48,7 @@ the GPU rather than falling back to CPU:
 Explain each step as you go, and after each service confirm it's on the GPU.
 ```
 
-> ℹ️ **Note:** If your assistant gets stuck, point it at this guide (docs/GETTING_STARTED.md in this repo) for the verified specifics — the exact unit files, env vars, and the gfx1151 nightly index are all here.
+> ℹ️ **Note:** If your assistant gets stuck, point it at this guide (docs/GETTING_STARTED.md in this repo) for the verified specifics, the exact unit files, env vars, and the gfx1151 nightly index are all here.
 
 ---
 
@@ -56,7 +56,7 @@ Explain each step as you go, and after each service confirm it's on the GPU.
 
 ### Ollama
 
-Install the binary. This part works — it lands in /usr/local/bin, which is writable on Bazzite:
+Install the binary. This part works, it lands in /usr/local/bin, which is writable on Bazzite:
 
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
@@ -64,7 +64,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 
 #### Why the installer's service silently fails here
 
-The installer's service step runs `useradd -m -d /usr/share/ollama ollama` — but /usr/share is read-only on Bazzite, so that home directory is never created. You can confirm it: the user exists, yet its home doesn't.
+The installer's service step runs `useradd -m -d /usr/share/ollama ollama`, but /usr/share is read-only on Bazzite, so that home directory is never created. You can confirm it: the user exists, yet its home doesn't.
 
 ```bash
 getent passwd ollama
@@ -73,7 +73,7 @@ ls -ld /usr/share/ollama
 # -> No such file or directory                          (home never created)
 ```
 
-So the generated service runs as the `ollama` user with a home that doesn't exist on a read-only path — it can't store models, and it never sets the iGPU flags. It looks installed but doesn't work. Disable it:
+So the generated service runs as the `ollama` user with a home that doesn't exist on a read-only path, it can't store models, and it never sets the iGPU flags. It looks installed but doesn't work. Disable it:
 
 ```bash
 sudo systemctl disable --now ollama
@@ -104,9 +104,9 @@ WantedBy=default.target
 EOF
 ```
 
-What the two GPU env vars do — without either, Ollama silently runs on the CPU:
-- OLLAMA_IGPU_ENABLE=1 — enables the integrated GPU, which Ollama ignores by default.
-- OLLAMA_VULKAN=1 — routes compute through Vulkan, the working path for this iGPU.
+What the two GPU env vars do, without either, Ollama silently runs on the CPU:
+- OLLAMA_IGPU_ENABLE=1, enables the integrated GPU, which Ollama ignores by default.
+- OLLAMA_VULKAN=1, routes compute through Vulkan, the working path for this iGPU.
 (OLLAMA_HOST=0.0.0.0:11434 lets the Open WebUI container reach Ollama.)
 
 #### Enable, start, and keep it running after logout
@@ -128,7 +128,7 @@ ollama ps                    # PROCESSOR column should show a GPU %, not "100% C
 
 ### Open WebUI
 
-Run Open WebUI as a Podman Quadlet — a container managed by systemd — rather than a container you start by hand, so it starts on boot and restarts cleanly.
+Run Open WebUI as a Podman Quadlet, a container managed by systemd, rather than a container you start by hand, so it starts on boot and restarts cleanly.
 
 ```bash
 mkdir -p ~/.config/containers/systemd
@@ -157,11 +157,11 @@ systemctl --user daemon-reload
 systemctl --user start open-webui
 ```
 
-Then open http://127.0.0.1:3000 (use 127.0.0.1, not localhost — some browsers mishandle localhost for local servers).
+Then open http://127.0.0.1:3000 (use 127.0.0.1, not localhost; some browsers mishandle localhost for local servers).
 
-> ⚠️ **Watch out:** Failure point 1 — the Volume line. `Volume=open-webui:/app/backend/data` is a plain named volume that Podman creates automatically. Do NOT write `Volume=open-webui.volume:/...` — the `.volume` suffix makes Quadlet look for a separate open-webui.volume file, and when it isn't there the service never generates. `systemctl --user status open-webui` then shows a confusing “not found” for a unit that was never created.
+> ⚠️ **Watch out:** Failure point 1, the Volume line. `Volume=open-webui:/app/backend/data` is a plain named volume that Podman creates automatically. Do NOT write `Volume=open-webui.volume:/...`, the `.volume` suffix makes Quadlet look for a separate open-webui.volume file, and when it isn't there the service never generates. `systemctl --user status open-webui` then shows a confusing “not found” for a unit that was never created.
 
-> ⚠️ **Watch out:** Failure point 2 — the first image pull. The first start pulls a multi-hundred-MB image. Without TimeoutStartSec=600, systemd's default ~90s start timeout fires and kills it mid-pull, leaving the unit failed for no obvious reason. Keep TimeoutStartSec=600, and it helps to pull the image once by hand first: `podman pull ghcr.io/open-webui/open-webui:main`.
+> ⚠️ **Watch out:** Failure point 2, the first image pull. The first start pulls a multi-hundred-MB image. Without TimeoutStartSec=600, systemd's default ~90s start timeout fires and kills it mid-pull, leaving the unit failed for no obvious reason. Keep TimeoutStartSec=600, and it helps to pull the image once by hand first: `podman pull ghcr.io/open-webui/open-webui:main`.
 
 > ℹ️ **Note:** Also make sure the first line is exactly `[Unit]`. A stray `Unit]` with the bracket missing silently voids the section.
 
@@ -175,16 +175,16 @@ cd ~/ComfyUI
 python3 -m venv venv
 ```
 
-#### The ROCm segfault on this chip — and the fix
+#### The ROCm segfault on this chip, and the fix
 
-If you install the standard ROCm PyTorch (download.pytorch.org/whl/rocm6.3), ComfyUI crashes on gfx1151 the moment it touches the GPU. The crash is a segmentation fault inside libamdhip64.so (around memcpy_and_sync) — you'll see something like this and it will exit:
+If you install the standard ROCm PyTorch (download.pytorch.org/whl/rocm6.3), ComfyUI crashes on gfx1151 the moment it touches the GPU. The crash is a segmentation fault inside libamdhip64.so (around memcpy_and_sync), you'll see something like this and it will exit:
 
 ```text
 Segmentation fault (core dumped)
 # backtrace mentions libamdhip64.so ... memcpy_and_sync
 ```
 
-That's not something you did wrong — it's a known driver gap on this chip. The fix is to install PyTorch from the gfx1151-specific ROCm nightly:
+That's not something you did wrong, it's a known driver gap on this chip. The fix is to install PyTorch from the gfx1151-specific ROCm nightly:
 
 ```bash
 venv/bin/pip install --index-url https://rocm.nightlies.amd.com/v2/gfx1151/ \
@@ -209,22 +209,22 @@ venv/bin/pip install -r custom_nodes/ComfyUI-GGUF/requirements.txt
 #### The three model files (real sizes, exact places)
 
 ```bash
-# Diffusion model (GGUF) — 20.3 GB  ->  models/diffusion_models/
+# Diffusion model (GGUF), 20.3 GB  ->  models/diffusion_models/
 wget -P models/diffusion_models \
   https://huggingface.co/city96/Qwen-Image-gguf/resolve/main/qwen-image-Q8_0.gguf
 
-# Text encoder — 8.7 GB  ->  models/text_encoders/
+# Text encoder, 8.7 GB  ->  models/text_encoders/
 wget -P models/text_encoders \
   https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors
 
-# VAE — 242 MB  ->  models/vae/
+# VAE, 242 MB  ->  models/vae/
 wget -P models/vae \
   https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors
 ```
 
 #### The launch script
 
-Create the launch wrapper. The environment it sets is not optional — running `python3 main.py` directly (without this env) brings the crash / CPU fallback right back:
+Create the launch wrapper. The environment it sets is not optional, running `python3 main.py` directly (without this env) brings the crash / CPU fallback right back:
 
 ```bash
 cat > ~/ComfyUI/start_comfyui_rocm.sh <<'EOF'
@@ -244,18 +244,18 @@ chmod +x ~/ComfyUI/start_comfyui_rocm.sh
 ```
 
 Why each line matters:
-- unset HSA_OVERRIDE_GFX_VERSION — a globally-set gfx override (a common tweak) makes the nightly target the wrong arch and breaks; clear it.
-- HSA_ENABLE_SDMA=0 — disables the SDMA path that triggers the crash on Strix Halo. This is the actual mitigation.
-- HIP_VISIBLE_DEVICES=0 — selects the iGPU.
-- HSA_USE_SVM=0 and PYTORCH_ALLOC_CONF=… — memory settings tuned for this shared-memory APU.
+- unset HSA_OVERRIDE_GFX_VERSION, a globally-set gfx override (a common tweak) makes the nightly target the wrong arch and breaks; clear it.
+- HSA_ENABLE_SDMA=0, disables the SDMA path that triggers the crash on Strix Halo. This is the actual mitigation.
+- HIP_VISIBLE_DEVICES=0, selects the iGPU.
+- HSA_USE_SVM=0 and PYTORCH_ALLOC_CONF=…, memory settings tuned for this shared-memory APU.
 
-Open http://127.0.0.1:8188. In the startup log you should see `Device: cuda:0 Radeon 8060S Graphics` and `AMD arch: gfx1151` — that's the iGPU in use.
+Open http://127.0.0.1:8188. In the startup log you should see `Device: cuda:0 Radeon 8060S Graphics` and `AMD arch: gfx1151`. That's the iGPU in use.
 
 > ℹ️ **Note:** (Local) AI Hub can run ComfyUI as a systemd user service that sets exactly this same environment, so you don't have to launch the script by hand.
 
 ### Agent layers (optional)
 
-Everything above is the base stack: Ollama is the engine that runs models, Open WebUI is an interface onto it, ComfyUI is its own image-generation world. An agent harness is a different kind of thing — it doesn't run a model, it drives one that Ollama is already running, which means it's dead in the water whenever Ollama is stopped.
+Everything above is the base stack: Ollama is the engine that runs models, Open WebUI is an interface onto it, ComfyUI is its own image-generation world. An agent harness is a different kind of thing, it doesn't run a model, it drives one that Ollama is already running, which means it's dead in the water whenever Ollama is stopped.
 
 (Local) AI Hub shows harnesses in their own section below the services, with the dependency stated on the card, so the difference is visible rather than something you have to remember. Hermes Agent is the one it knows about today.
 
@@ -307,21 +307,21 @@ A `:latest` tag with `AutoUpdate=registry` means the version you're running can 
 
 If Hermes is only published on a remote address (a Tailscale IP, say), nothing answers on loopback and the app's Open button has nowhere local to go. Publishing both keeps remote access working and gives the local machine a loopback route.
 
-> ⚠️ **Watch out:** Hermes asks for a sign-in whenever a `dashboard.basic_auth` block is set in its config.yaml — including on loopback. That's a config choice, not a bind rule: keeping it means the Open button lands on a login page, and removing it would drop authentication for remote access too. The app tells you which of the two you're in rather than guessing.
+> ⚠️ **Watch out:** Hermes asks for a sign-in whenever a `dashboard.basic_auth` block is set in its config.yaml, including on loopback. That's a config choice, not a bind rule: keeping it means the Open button lands on a login page, and removing it would drop authentication for remote access too. The app tells you which of the two you're in rather than guessing.
 
-> ℹ️ **Note:** Hermes keeps the model and context it's pointed at inside its own container volume, which is readable only by the container's user. The app reads it through podman, so that one detail is unavailable in the sandboxed Flatpak build — it says so in place instead of showing a blank.
+> ℹ️ **Note:** Hermes keeps the model and context it's pointed at inside its own container volume, which is readable only by the container's user. The app reads it through podman, so that one detail is unavailable in the sandboxed Flatpak build, it says so in place instead of showing a blank.
 
 ### Your other self-hosted services
 
-Below the AI stack, (Local) AI Hub lists whatever else you self-host, under "Self-Hosted Apps & Services". You don't configure this and there's no list of supported apps — it asks Podman what's actually running.
+Below the AI stack, (Local) AI Hub lists whatever else you self-host, under "Self-Hosted Apps & Services". You don't configure this and there's no list of supported apps, it asks Podman what's actually running.
 
 #### What shows up, and what doesn't
 
-A container appears when two things are true: Podman Quadlet generated it (which is what gives it a systemd unit the app can start and stop), and it publishes at least one port. That second rule is why a toolbox or a container you started by hand with `podman run` stays out — there's nothing to open and nothing to check for life.
+A container appears when two things are true: Podman Quadlet generated it (which is what gives it a systemd unit the app can start and stop), and it publishes at least one port. That second rule is why a toolbox or a container you started by hand with `podman run` stays out, there's nothing to open and nothing to check for life.
 
 A pod shows as one entry, not one per container. Immich is five containers behind a single port; five cards for one app would be noise.
 
-> ℹ️ **Note:** Recognised services get a proper name and category. Anything the app doesn't recognise is shown by its container name and port rather than guessed at — honest and usually what you called it anyway.
+> ℹ️ **Note:** Recognised services get a proper name and category. Anything the app doesn't recognise is shown by its container name and port rather than guessed at, honest and usually what you called it anyway.
 
 #### Running status means running, not "exists"
 
@@ -329,13 +329,13 @@ The status dot comes from an actual request to the address the port is published
 
 ### Which address works from where
 
-127.0.0.1 means "this computer". It's the right address for the Open button and completely useless typed into your phone — which is the single most common confusion with self-hosted services.
+127.0.0.1 means "this computer". It's the right address for the Open button and completely useless typed into your phone, which is the single most common confusion with self-hosted services.
 
 Each service with a web interface has a globe button that folds out every address it's reachable at, with a sentence about where each one works:
 
-- 127.0.0.1 — only on this computer.
-- A 192.168.x.x / 10.x.x.x / 172.16-31.x.x address — other devices on the same network. Use this one on your phone at home.
-- A 100.x address or a MagicDNS name — your devices anywhere, over Tailscale. This one keeps working away from home.
+- 127.0.0.1, only on this computer.
+- A 192.168.x.x / 10.x.x.x / 172.16-31.x.x address, other devices on the same network. Use this one on your phone at home.
+- A 100.x address or a MagicDNS name, your devices anywhere, over Tailscale. This one keeps working away from home.
 
 The app detects these rather than asking you to configure anything, and shows only what genuinely exists. No LAN address detected means none is shown.
 
@@ -358,7 +358,7 @@ The `ollama` user's home was never created on the read-only /usr. Fix: disable t
 
 #### Ollama runs on CPU
 
-`ollama ps` shows PROCESSOR as “100% CPU”. The iGPU env vars aren't set — add OLLAMA_IGPU_ENABLE=1 and OLLAMA_VULKAN=1 and restart.
+`ollama ps` shows PROCESSOR as “100% CPU”. The iGPU env vars aren't set, add OLLAMA_IGPU_ENABLE=1 and OLLAMA_VULKAN=1 and restart.
 
 #### Open WebUI: “not found”, unit won't start
 

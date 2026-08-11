@@ -14,8 +14,8 @@
   <description>
     <p>
       (Local) AI Hub is a free, open-source control panel for the services running on
-      your own machine. Local AI comes first — Ollama, Open WebUI, ComfyUI, and any
-      agent harness running on top of them — and below it sits everything else you
+      your own machine. Local AI comes first: Ollama, Open WebUI, ComfyUI, and any
+      agent harness running on top of them. Below that sits everything else you
       self-host, found automatically from your rootless Podman containers. It puts
       them in one window so you don't need a terminal for day-to-day use.
     </p>
@@ -23,7 +23,7 @@
     <ul>
       <li>See what's running at a glance, with live status for each service.</li>
       <li>Start and stop each tool with a single toggle.</li>
-      <li>Manage your models — update, install, and remove them.</li>
+      <li>Manage your models: update, install, and remove them.</li>
       <li>See the address each service is reachable at, including from your phone.</li>
       <li>Plain-language alerts when a service crashes, with a one-click log view.</li>
       <li>A built-in Getting Started guide.</li>
@@ -35,7 +35,7 @@
     </p>
     <p>
       It was built and verified on Bazzite with AMD Strix Halo hardware. Other
-      setups are untested for now — the app is honest about what it can and can't
+      setups are untested for now, the app is honest about what it can and can't
       detect on your machine, so services that aren't installed simply show as
       "Not installed" rather than erroring.
     </p>
@@ -100,7 +100,7 @@
       <description>
         <p>Installing or removing a tool is now noticed while the app is running, so the "Not installed" state appears and disappears without a restart.</p>
         <p>Agent harnesses that run on top of the stack get their own section, showing what they depend on and which model they are configured against. Hermes Agent is supported first.</p>
-        <p>Added a check for a newer version of the app, in the About panel. It contacts the network only when pressed, and never updates the app itself — Flatpak installs are pointed at their app store.</p>
+        <p>Added a check for a newer version of the app, in the About panel. It contacts the network only when pressed, and never updates the app itself, Flatpak installs are pointed at their app store.</p>
       </description>
     </release>
     <release version="1.1.0" date="2026-07-20">

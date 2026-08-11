@@ -2,7 +2,7 @@
 
 Written before the v1.2 UI work, from a survey of current writing on how
 AI-generated interfaces and prose give themselves away. The point is not to
-redesign anything — the app's design language is already set (see
+redesign anything; the app's design language is already set (see
 `web/styles.css` and `design/reference-mockup.html`). The point is that every
 *new* element added from here on has to look like it belongs to that language
 rather than to a model's statistical default.
@@ -44,8 +44,11 @@ would be the actual mistake.
 - Vocabulary that reads as machine-default: delve, elevate, seamless(ly),
   unlock, empower, robust, leverage, "in today's fast-paced world", "at a
   glance" as filler.
-- Em dashes at the rate of one per sentence. They're fine used the way the
-  existing copy uses them — sparingly, for a real aside.
+- Em dashes, at any rate at all. House rule: no em dash appears in anything a
+  user reads, which covers the app's own text, the README, the guide, the store
+  listing and the release notes. Use a colon to introduce, a semicolon or a full
+  stop to join, brackets for a true aside. Code comments and docstrings are not
+  user-facing and are exempt.
 - Rule-of-three lists where two items would do.
 - Enthusiasm the situation doesn't earn: exclamation marks, "Great news!",
   "You're all set!", urgency around updates.
@@ -56,17 +59,16 @@ would be the actual mistake.
 Short, declarative, and specific about what it cannot do. Existing examples to
 match:
 
-> Viewing service logs isn't available in the sandboxed Flatpak version of Local
-> AI Hub — the sandbox can't read the host's systemd journal.
+> Viewing service logs isn't available in the sandboxed Flatpak version of
+> (Local) AI Hub. The sandbox can't read the host's systemd journal.
 
 > Local-only · No accounts · No telemetry · Nothing phones home
 
 > ComfyUI isn't installed on this machine
 
 Note what these do: name the limitation, name the cause, and where possible give
-the user the real alternative. No apology, no reassurance, no upsell. New copy
-in this update — the Hermes layer, the version check — is written to that
-standard.
+the user the real alternative. No apology, no reassurance, no upsell. New copy in this update, meaning the Hermes
+layer and the version check, is written to that standard.
 
 Sources consulted: Developers Digest' write-up of the 16-pattern audit, 925
 Studios and SmoothUI on generic AI UI output, PR Daily and Hunting the Muse on

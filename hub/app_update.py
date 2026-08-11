@@ -54,7 +54,7 @@ def install_method() -> str:
 
 
 _ADVICE = {
-    "flatpak": ("Updates come from wherever you installed it — your app store, "
+    "flatpak": ("Updates come from wherever you installed it: your app store, "
                 "or `flatpak update`. (Local) AI Hub never updates itself."),
     "appimage": ("Download the new AppImage from the releases page. GearLever "
                  "can keep AppImages updated for you if you'd rather not do it "

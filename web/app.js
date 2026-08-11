@@ -377,10 +377,10 @@
         const on = st.cls.includes("is-on");
         const depUp = dep.active === true;
         const depTxt = dep.present === false
-          ? `Runs on <b>${esc(dep.name)}</b> — not installed, so ${esc(l.name)} has nothing to talk to`
+          ? `Runs on <b>${esc(dep.name)}</b> · not installed, so ${esc(l.name)} has nothing to talk to`
           : depUp
-            ? `Runs on <b>${esc(dep.name)}</b> — running`
-            : `Runs on <b>${esc(dep.name)}</b> — stopped, so ${esc(l.name)} can't reach a model`;
+            ? `Runs on <b>${esc(dep.name)}</b> · running`
+            : `Runs on <b>${esc(dep.name)}</b> · stopped, so ${esc(l.name)} can't reach a model`;
 
         const facts = [
           layerModelRow(l),
@@ -502,7 +502,7 @@
     // it clickable so a manual source can still be set); otherwise offer to set one.
     if (m.untracked) {
       return `<button class="cu-untracked" data-act="csource" data-path="${p}" data-name="${nm}"
-        title="No update source found — click to link a Hugging Face repo or URL">No update source</button>`;
+        title="No update source found, click to link a Hugging Face repo or URL">No update source</button>`;
     }
     return `<button class="btn-sm" data-act="csource" data-path="${p}" data-name="${nm}">Set source</button>`;
   }
@@ -739,7 +739,7 @@
     if (!data.applies) {
       body.innerHTML = `
         <div class="sc-plat">Detected: <b>${esc(p.distro || "unknown")}</b> · <b>${esc(p.gpu || "unknown")}</b></div>
-        <div class="m-hint" style="margin-top:12px">These checks apply only to Bazzite / Fedora Atomic on an AMD Strix Halo (gfx1151) iGPU. This machine doesn't match, so they're skipped — they wouldn't apply here.</div>`;
+        <div class="m-hint" style="margin-top:12px">These checks apply only to Bazzite / Fedora Atomic on an AMD Strix Halo (gfx1151) iGPU. This machine doesn't match, so they're skipped.</div>`;
       return;
     }
     const checks = data.checks || [];
@@ -772,11 +772,11 @@
   }
   function openLogModal(svc) {
     const bd = document.getElementById("logModal");
-    bd.querySelector("#lmTitle").textContent = (SVC_META[svc] ? SVC_META[svc].name : svc) + " — recent log";
+    bd.querySelector("#lmTitle").textContent = (SVC_META[svc] ? SVC_META[svc].name : svc) + ": recent log";
     // Be upfront in the sandboxed Flatpak build: crash detection works, but the
     // host journal (the log detail) isn't reachable — so say so plainly here.
     bd.querySelector("#lmSub").textContent = inFlatpak
-      ? "Log viewing isn't available in the Flatpak version — see the note below."
+      ? "Log viewing isn't available in the Flatpak version. See the note below."
       : "The last lines from this service's journal.";
     const body = bd.querySelector("#lmBody");
     body.textContent = "Loading…";
@@ -910,13 +910,13 @@
         <button class="btn-ghost" id="aboutClose">Close</button>
       </div>
       <div class="guide-body">
-        <div class="about-lead">(Local) AI Hub is a free, open-source control panel for the services running on your own machine — your local AI stack, and the apps and services you self-host alongside it. <b>Local-only, no accounts, no telemetry</b>.</div>
+        <div class="about-lead">(Local) AI Hub is a free, open-source control panel for the services running on your own machine: your local AI stack, and the apps and services you self-host alongside it. <b>Local-only, no accounts, no telemetry</b>.</div>
         <div class="about-note">Follow along, get help, or just say hello through the links below.</div>
 
         <div class="about-section-label">This app</div>
         <div class="ver-box">
           <div class="ver-row">
-            <div class="ver-now">Version <span id="verNow">—</span></div>
+            <div class="ver-now">Version <span id="verNow">…</span></div>
             <button class="btn-sm" id="verBtn">Check for a newer version</button>
           </div>
           <div class="ver-disclosure" id="verDisclosure"></div>
@@ -934,7 +934,7 @@
         <div class="about-section-label">Support</div>
         <a class="support-btn" data-act="open" data-url="${LINKS.bmc}">
           <span class="sb-icon">${I.coffee}</span>
-          <span class="sb-text"><span class="sb-title">Buy me a coffee</span><span class="sb-sub">Support the project — entirely optional, always appreciated</span></span>
+          <span class="sb-text"><span class="sb-title">Buy me a coffee</span><span class="sb-sub">Support the project. Entirely optional, always appreciated</span></span>
           <span class="sb-ext">${I.ext}</span>
         </a>
 
@@ -961,7 +961,7 @@
       let m; try { m = JSON.parse(json); } catch (e) { return; }
       const now = document.getElementById("verNow");
       const disc = document.getElementById("verDisclosure");
-      if (now) now.textContent = m.version || "—";
+      if (now) now.textContent = m.version || "…";
       if (disc) disc.textContent = m.disclosure || "";
     });
   }
