@@ -67,7 +67,47 @@ full manual walkthrough (every command verified against a working machine).
 - **Notices installs and uninstalls while it's running**: install or remove a tool by any method and the card updates itself; the honest "Not installed" state appears and disappears without a restart. Driven by systemd D-Bus signals and filesystem watches, not by constant rescanning.
 - **Agent layers**: a harness that runs *on top of* your stack (currently [Hermes Agent](https://github.com/NousResearch/hermes-agent)) gets its own labelled section rather than being mixed in with the base services, so it's obvious what's an engine (Ollama), what's an interface (Open WebUI), and what's an agent on top. The card states its dependency in place, shows the model and context it's configured against, and flags it clearly if that model isn't installed.
 - **Check for a newer version of the app**: in About, and only when you press it. No launch check, no background timer. Flatpak installs are pointed at their app store; the app never updates itself.
+- **Disk space in view**: how much Ollama models, ComfyUI models, container images and container volumes are using, with free space per physical device rather than the same number repeated per tool. Measured in the background, so nothing waits on it.
+- **Memory in view, and a way to release it**: what is resident right now and how it compares with the machine. Releasing asks Ollama to unload one model, which is exactly what `ollama stop` does; Ollama finishes any request already in progress first, so nothing in flight is cut off.
+- **Uninstall, with a preview**: every removal is shown in full before anything happens, and removing software never deletes your data. See below.
 - **Light & dark**: polished, and your choice persists.
+
+## 🗑️ What uninstall does, and what it will not do
+
+Removing software and deleting your data are different operations here, and they
+never share a confirmation.
+
+**Removing a service takes** the container, the quadlet file, the generated
+systemd unit and its leftover state, the configuration folder, the cache folder,
+the launcher entry and the icon. Every one of them is listed with its full path
+and size before anything happens.
+
+**Your data is separate.** Podman named volumes are excluded by default. They are
+listed by name with their size, and only removed if you tick a box that names the
+specific volume it will delete. That box is never pre-selected and never bundled
+into the software confirmation.
+
+**It will not:**
+
+- Remove a container image, ever. Images are shared downloads and removing one is
+  not needed to remove a service.
+- Remove any volume or image that something else is using. That is reported as
+  kept, naming what else uses it.
+- Continue past a failure. It stops at the first step that does not work and tells
+  you exactly what was and was not done.
+- Remove itself.
+
+**Some things show a disabled trash button on purpose**, with the reason stated
+in place. Honest limits are the point:
+
+| Item | Why it is disabled |
+|---|---|
+| Ollama | Its program files live in `/usr/local`, outside your home and owned by root. This app never asks for root, and removing the unit and models while leaving the binary behind is a half-finished job. |
+| ComfyUI | Its program files, your models and your generated images are all inside one folder. The app cannot tell them apart well enough to remove one and keep the others. |
+| A pod, such as Immich | It is several containers, not one. Removing one member would leave the rest half configured. |
+| A model that is in memory | Release it first, then it can be removed. |
+| Anything, while ComfyUI has a job queued | Model files stay put until the queue is empty. |
+| Anything, in the Flatpak build | The sandbox has no access to systemd or podman on the host. |
 
 ## 🖥️ Run it
 

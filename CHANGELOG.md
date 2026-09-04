@@ -5,6 +5,46 @@ All notable changes to (Local) AI Hub are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-09-04
+
+The first release that can delete things. The major number is the warning.
+
+### Added
+- **Uninstall, with a preview you see before anything happens.** Every removal
+  starts as a manifest listing each artifact with its full path and size.
+  Nothing is removed that was not on that list, and the confirmation is bound to
+  the exact plan you were shown: if the system changes in between, the removal
+  is refused rather than carried out against a machine you did not look at.
+- **A hard line between removing software and deleting your data.** They are
+  never the same action and never share a confirmation. Removing a service takes
+  the container, the quadlet, the generated unit, the configuration, the cache,
+  the launcher entry and the icon. Named volumes are data: they are excluded by
+  default, listed by name with their size, and only ever removed when you tick a
+  separate box that names what it deletes.
+- **Dependency checking read from the running system.** Before a removal the app
+  reports what would break, resolved from real quadlets, container environments
+  and harness configuration rather than a built-in map. Where a dependent could
+  be repointed instead of broken, that is offered as an option. A relationship
+  that cannot be read is reported as unknown and treated as risk.
+- **Disk space, per tool and per device.** Ollama models, ComfyUI models,
+  container images and container volumes, with free space reported for each
+  physical device rather than repeated per tool. Computed in the background, so
+  nothing waits on it, and shown as "measuring" while it is still being worked
+  out.
+- **Memory, and a way to release it.** What is resident, roughly how much it
+  holds, and how that compares with the machine. Release asks Ollama to unload
+  one model, which is what `ollama stop` does. Ollama finishes any request
+  already in progress first, so nothing in flight is cut off.
+
+### Notes on what it will not do
+- It never removes a container image, or any volume or image shared with
+  something else, and it says so in the preview.
+- It never removes Ollama or ComfyUI. Both have parts outside the app's reach,
+  and a removal it cannot finish completely is one it does not offer.
+- It never removes itself.
+- It stops at the first step that fails and reports exactly what was and was not
+  done, rather than continuing into a state nobody can reason about.
+
 ## [1.3.2] - 2026-08-10
 
 ### Changed
@@ -182,6 +222,7 @@ WebUI, and ComfyUI, built and verified on Bazzite with AMD Strix Halo hardware.
 - **Distribution**: a portable AppImage and a standalone (no-Python) build, plus
   a Flatpak that controls the host systemd services over D-Bus inside the sandbox.
 
+[2.0.0]: https://github.com/kamsiob/LocalAIHub/releases/tag/v2.0.0
 [1.3.2]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.3.2
 [1.3.1]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.3.1
 [1.3.0]: https://github.com/kamsiob/LocalAIHub/releases/tag/v1.3.0

@@ -341,6 +341,46 @@ The app detects these rather than asking you to configure anything, and shows on
 
 > ⚠️ **Watch out:** A service reachable on your LAN is reachable by everything else on that network. That is what makes it useful from the sofa and what makes it worth thinking about on a network you don't control. Tailscale is the private option: only your own devices, wherever they are.
 
+### Disk space and memory
+
+The line under the header carries two things: how much free space each disk has, and how much memory is available. Both are read from the system, and anything that cannot be determined is left out rather than guessed at.
+
+#### Why free space is per disk, not per tool
+
+Free space belongs to a disk, not to a program. If your models and your photos are on the same disk, they share the same free space, and showing that number twice would suggest that deleting one helps the other. Where things really are on different disks, each one is listed separately.
+
+#### Sizes fill in as they are worked out
+
+Totals appear next to each section heading. While a figure is still being measured it says so, because a number that arrives a second late is better than an interface that waits for it.
+
+#### Releasing memory
+
+A model that is loaded shows a Release memory button. It asks Ollama to unload that one model. The service keeps running, the model stays installed on disk, and nothing else that is loaded is touched.
+
+> ℹ️ **Note:** Ollama finishes any request that is already running before it unloads, so this cannot cut off a reply in progress. Ollama does not publish a way to see requests in flight, so the app never claims it checked; if the model is still there afterwards, it says so plainly.
+
+### Removing things
+
+Removing software and deleting your data are two different operations, and this app never merges them into one.
+
+#### You see the whole plan first
+
+The trash button opens a preview and removes nothing. The preview lists every single thing that would go, with its full path and size. Nothing is removed that was not on that list. If anything about the item changes between the preview and your confirmation, the removal is refused, because the plan you approved is no longer the plan that would run.
+
+#### Your data is opted into, never assumed
+
+Container volumes are where things like a photo library or a chat history live. They are excluded by default and shown in their own section, named individually. Removing them takes a separate tick box that says which volume it deletes. There is no undo.
+
+#### What it leaves alone
+
+It never removes a container image, because images are shared downloads and removing one is not needed to remove a service. It never removes a volume or an image that something else is using, and it names what else uses it. It never removes itself.
+
+> ⚠️ **Watch out:** Some things show a disabled trash button on purpose. Ollama's program files live outside your home folder and are owned by root, and this app never asks for root. ComfyUI keeps its program, your models and your generated images in one folder, and the app cannot tell them apart well enough to remove one and keep the others. A removal it cannot finish completely is one it does not offer.
+
+#### If a step fails
+
+It stops there. It does not push on and leave the system in a state nobody can reason about. You get a list of what was done, what failed and why, and what was not attempted.
+
 ### Troubleshooting
 
 The exact errors hit while building this the first time, so you can pattern-match instead of debugging blind.

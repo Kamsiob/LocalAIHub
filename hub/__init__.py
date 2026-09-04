@@ -1,3 +1,3 @@
 """local-ai-hub — backend package for controlling local AI services."""
 
-__version__ = "1.3.2"
+__version__ = "2.0.0"
