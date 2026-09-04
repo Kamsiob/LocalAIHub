@@ -34,6 +34,8 @@ sys.path.insert(0, str(ROOT))
 from hub import addresses  # noqa: E402
 from hub import app_update  # noqa: E402
 from hub import config  # noqa: E402
+from hub import memory  # noqa: E402
+from hub.sizes import DiskUsage  # noqa: E402
 from hub.guide import GUIDE  # noqa: E402
 from hub.layers import build_layers  # noqa: E402
 from hub.services import ComfyUIService, OllamaService, OpenWebUIService  # noqa: E402
@@ -73,6 +75,10 @@ class Backend(QObject):
         # or with the background scan reading the state it is changing. It
         # refuses rather than queues: a second click should be told, not
         # silently served later against a system that has already changed.
+        # Disk figures are computed on their own thread and read from a cache.
+        # They must never be computed inside _collect: that runs under the
+        # operation lock, and a slow figure would hold up the whole interface.
+        self.disk = DiskUsage(self.ollama, self.comfyui)
         self._op_lock = threading.Lock()
         self._op_name = ""
         self._last_failed: dict = {}   # for one-shot "stopped unexpectedly" alerts
@@ -163,7 +169,29 @@ class Backend(QObject):
                 "comfyui_models": comfyui_models,
                 "layers": self._collect_layers(services, models, loaded),
                 "apps": self._collect_apps(),
-                "addresses": addresses.detect()}
+                "addresses": addresses.detect(),
+                "disk": self._collect_disk(),
+                "memory": self._collect_memory(loaded)}
+
+    def _collect_disk(self) -> dict:
+        """Whatever has been measured so far. Never computes, never blocks."""
+        if self.disk.stale():
+            self.disk.refresh_async()
+        return self.disk.snapshot()
+
+    def _collect_memory(self, loaded) -> dict:
+        """A few honest figures. Anything undeterminable is omitted, not zeroed."""
+        try:
+            hw = memory.hardware()
+        except Exception:
+            hw = {"kind": "unknown", "ram_total": None, "ram_available": None,
+                  "vram_total": None, "vram_used": None, "note": ""}
+        try:
+            resident = memory.loaded_models()
+        except Exception:
+            resident = []
+        return {"hardware": hw, "loaded": resident,
+                "explainer": memory.RELEASE_EXPLAINER}
 
     def _collect_apps(self) -> dict:
         """The non-AI self-hosted services, or an honest note about why not.
@@ -432,6 +460,33 @@ class Backend(QObject):
         self._run_exclusive("start or stop a service", work)
 
     @Slot(str)
+    def release_memory(self, name: str) -> None:
+        """Ask Ollama to unload one model. Never automatic, never on a timer.
+
+        Only the model the user picked. Nothing else loaded is touched, and the
+        service keeps running, so no other workload is disturbed.
+        """
+        if not name:
+            return
+
+        def work() -> None:
+            # Re-read immediately before acting rather than trusting the state
+            # the interface was rendered from, which may be up to 5s old.
+            if not any(m["name"] == name for m in memory.loaded_models()):
+                self.notify.emit(f"{name} is not in memory.")
+                self._emit_state()
+                return
+            self.notify.emit(f"Asking Ollama to unload {name}")
+            try:
+                res = memory.release_ollama_model(name)
+            except Exception as exc:  # noqa: BLE001
+                res = {"detail": f"Could not release {name} ({exc})."}
+            self.notify.emit(res.get("detail", "done"))
+            self._emit_state()
+
+        self._run_exclusive(f"releasing {name}", work)
+
+    @Slot(str)
     def restart_service(self, key: str) -> None:
         """Restart a unit. Offered on the Hermes layer because its gateway has a
         restart of its own that the app can't reach — /api/gateway needs the
@@ -641,6 +696,10 @@ class MainWindow(QMainWindow):
         # away, so the "Not installed" cards come and go without a restart. The
         # timer above stays on as the safety net for anything it misses.
         self.watcher = ChangeWatcher(self.backend._services, self)
+        # A tool appearing or disappearing changes the disk picture, so the
+        # cached figures are dropped on the same edge rather than waiting out
+        # their time to live.
+        self.watcher.changed.connect(lambda _r: self.backend.disk.invalidate())
         self.watcher.changed.connect(self.backend.request_refresh)
 
 

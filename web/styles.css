@@ -348,6 +348,27 @@ body {
 .btn-sm svg { width: 14px; height: 14px; flex: none; }
 .btn-sm:has(svg) { display: inline-flex; align-items: center; gap: 7px; }
 
+/* ---------- machine line ----------
+   One quiet line under the header carrying free space and memory. Deliberately
+   not a card and not a panel: this is supporting context, and the service list
+   stays the primary content. It adds a single line rather than a block, so no
+   control moves down the page. Warn color is used only when space is actually
+   low, never as a default state. */
+.machine {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px;
+  font-size: 12.5px; color: var(--text-faint);
+  padding: 0 4px 18px; margin-top: -14px;
+}
+.machine .m-k { color: var(--text-faint); }
+.machine b { color: var(--text-muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+.machine .m-pending b { color: var(--text-faint); font-weight: 500; }
+.machine .m-low b { color: var(--warn); }
+.machine .m-item { white-space: nowrap; }
+
+/* a size on a group header, next to the count it already shows */
+.group-size { color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.group-size.pending { opacity: .6; }
+
 /* ---------- the two groups ----------
    Separation is spacing and a plain strong header, not rules or tinted panels.
    "Local AI" is first and never collapses: this is a local-AI app that grew, and

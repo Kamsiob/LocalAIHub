@@ -95,6 +95,8 @@
   const state = {
     services: {}, models: [], comfyModels: [], layers: [],
     apps: { supported: true, limit: null, items: [] },
+    disk: { entries: [], filesystems: [], measured: false },
+    memory: { hardware: {}, loaded: [], explainer: "" },
     addresses: {},
     expanded: { ollama: false, comfyui: false },
     // Layer details start folded: the card's one-line status is the answer most
@@ -183,6 +185,69 @@
 
   function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
+  // ---- machine line -------------------------------------------------------
+  // Free space and memory, in one quiet line under the header. Supporting
+  // context, not a dashboard: no graphs, no history, no color unless space is
+  // genuinely low. A figure that could not be determined is left out entirely
+  // rather than shown as zero.
+  const LOW_SPACE_BYTES = 20 * 1024 * 1024 * 1024;   // about one large model
+
+  function bytesHuman(n) {
+    if (n === null || n === undefined) return "";
+    let size = Number(n);
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    for (let i = 0; i < units.length; i++) {
+      if (size < 1024 || i === units.length - 1) {
+        return (units[i] === "B" || units[i] === "KB")
+          ? `${size.toFixed(0)} ${units[i]}` : `${size.toFixed(1)} ${units[i]}`;
+      }
+      size /= 1024;
+    }
+    return "";
+  }
+
+  function renderMachine() {
+    const host = document.getElementById("machine");
+    if (!host) return;
+    const parts = [];
+    const hw = (state.memory && state.memory.hardware) || {};
+
+    if (hw.ram_available && hw.ram_total) {
+      const title = hw.note ? ` title="${esc(hw.note)}"` : "";
+      parts.push(`<span class="m-item"${title}><span class="m-k">Memory</span> ` +
+        `<b>${esc(bytesHuman(hw.ram_available))}</b> available of ${esc(bytesHuman(hw.ram_total))}</span>`);
+    }
+
+    const disk = state.disk || {};
+    if (!disk.measured && !(disk.filesystems || []).length) {
+      parts.push(`<span class="m-item m-pending"><span class="m-k">Disk</span> <b>measuring</b></span>`);
+    }
+    // Only the first disk item carries the word, so three devices read as one
+    // run of figures rather than three repetitions of the same label.
+    (disk.filesystems || []).forEach((fs, i) => {
+      const low = fs.free < LOW_SPACE_BYTES ? " m-low" : "";
+      const key = i === 0 ? `<span class="m-k">Disk</span> ` : "";
+      const tail = i === 0 ? " free on " : " on ";
+      parts.push(`<span class="m-item${low}">${key}` +
+        `<b>${esc(fs.free_human)}</b>${tail}${esc(fs.mount)}</span>`);
+    });
+
+    host.innerHTML = parts.join("");
+    host.hidden = parts.length === 0;
+  }
+
+  // Totals shown next to the count a group header already carries, so the
+  // sizes cost no new element and no vertical space.
+  function groupSize(keys) {
+    const entries = (state.disk.entries || []).filter(e => keys.includes(e.key));
+    if (!entries.length) return "";
+    if (entries.some(e => e.state === "pending")) return ` · <span class="group-size pending">measuring</span>`;
+    const ready = entries.filter(e => e.state === "ready");
+    if (!ready.length) return "";
+    const total = ready.reduce((a, e) => a + (e.bytes || 0), 0);
+    return ` · <span class="group-size">${esc(bytesHuman(total))}</span>`;
+  }
+
   // ---- reachable-at -------------------------------------------------------
   // "Open" still goes to 127.0.0.1, which is right on this machine and is what
   // the button is for. This is the separate question — what do I type on my
@@ -266,7 +331,8 @@
 
     group.hidden = false;
     note.hidden = true;
-    count.textContent = items.length === 1 ? "1 service" : `${items.length} services`;
+    count.innerHTML = (items.length === 1 ? "1 service" : `${items.length} services`)
+      + groupSize(["images", "volumes"]);
 
     if (state.appsCollapsed === null) {
       state.appsCollapsed = items.length > APPS_COLLAPSE_THRESHOLD;
@@ -441,6 +507,7 @@
         <span class="model-name">${esc(m.name)}</span>
         <span class="size">${esc(m.size_human || "")}</span>
         <span class="badge ${m.loaded ? "loaded" : ""}"><span class="b-dot"></span>${m.loaded ? "In memory" : "On disk"}</span>
+        ${m.loaded ? `<button class="btn-sm" data-act="release" data-model="${esc(m.name)}" title="${esc(state.memory.explainer || "")}">Release memory</button>` : ""}
         ${ollamaAction(m)}
       </div>`).join("") : `<div class="model"><span class="model-name" style="color:var(--text-faint)">No models installed</span></div>`;
     return `
@@ -592,6 +659,16 @@
     if (!backend || !backend.set_app) { toast("Not connected to backend"); return; }
     toast(`${app.name}: ${app.active ? "stopping…" : "starting…"}`);
     backend.set_app(unit, !app.active);
+  }
+
+  function onRelease(name) {
+    if (!name) return;
+    if (!backend || !backend.release_memory) { toast("Not connected to backend"); return; }
+    // No confirmation dialog: this frees memory, it does not destroy anything,
+    // and the model stays installed. The explainer on the button says exactly
+    // what it does before it is pressed.
+    toast(`Asking Ollama to unload ${name}`);
+    backend.release_memory(name);
   }
 
   function onUpdate(model) {
@@ -1085,6 +1162,7 @@
       if (act === "toggle") onToggle(svc);
       else if (act === "expand") onExpand(svc);
       else if (act === "update") onUpdate(el.dataset.model);
+      else if (act === "release") onRelease(el.dataset.model);
       else if (act === "ocheck") { if (backend && backend.check_ollama_update) { toast("Checking for update…"); backend.check_ollama_update(el.dataset.model); } }
       else if (act === "csource") openSourceModal(el.dataset.path, el.dataset.name);
       else if (act === "ccheck") onComfyCheck(el.dataset.path);
@@ -1169,6 +1247,9 @@
     if (payload.layers) state.layers = payload.layers;
     if (payload.apps) state.apps = payload.apps;
     if (payload.addresses) state.addresses = payload.addresses;
+    if (payload.disk) state.disk = payload.disk;
+    if (payload.memory) state.memory = payload.memory;
+    renderMachine();
     render();
     renderLayers();
     renderApps();
@@ -1177,7 +1258,7 @@
       const n = ["ollama", "openwebui", "comfyui"].filter(
         k => (state.services[k] || {}).present !== false).length
         + (state.layers || []).filter(l => l.present !== false).length;
-      ai.textContent = n === 1 ? "1 service" : `${n} services`;
+      ai.innerHTML = (n === 1 ? "1 service" : `${n} services`) + groupSize(["ollama", "comfyui"]);
     }
   }
   window.__applyState = applyState;   // backend pushes here
