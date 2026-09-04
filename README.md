@@ -74,6 +74,17 @@ full manual walkthrough (every command verified against a working machine).
 
 ## 🗑️ What uninstall does, and what it will not do
 
+<p align="center">
+  <img src="assets/screenshot-uninstall.png" alt="The uninstall preview, listing every artifact with its full path" width="380">
+  &nbsp;
+  <img src="assets/screenshot-uninstall-data.png" alt="The same preview with the separate data option ticked" width="380">
+</p>
+<p align="center">
+  <sub>Left: the preview, with data excluded and the button reading "Remove the software".
+  Right: the same screen after ticking the separate data box, which names the exact volume and changes what the button says.</sub>
+</p>
+
+
 Removing software and deleting your data are different operations here, and they
 never share a confirmation.
 
