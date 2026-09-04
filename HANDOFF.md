@@ -108,6 +108,26 @@ That prints the install method, the trust store in use, and the result of one
 real version check. It exists because a whole class of bug is invisible from
 source and only the built binary can prove it is fixed.
 
+## Where v2.0 landed, and what is deliberately not there
+
+| Item | Removal | Why |
+|---|---|---|
+| Open WebUI, Hermes, and every discovered quadlet service | offered | One quadlet file names the container and its volumes, so the plan can be exact |
+| Ollama models | offered | Re-pullable by name; blocked while resident in memory |
+| Ollama | not offered | Program files root owned in `/usr/local`, outside `$HOME` |
+| ComfyUI | not offered | Program, models and generated images share one folder |
+| Immich, or any pod | not offered | Several containers; removing one member leaves the rest half configured |
+| ComfyUI model files | not offered in 2.0 | Often no recorded source to fetch again |
+| Container images | never | Shared downloads; removing one is not needed to remove a service |
+| `~/.config/<name>`, `~/.cache/<name>`, launcher entries | never | Matched only by name, which is not proof of ownership. Reported instead |
+
+An adversarial review of the removal code before release produced 42 confirmed
+findings, 16 of them data loss. The largest was the config and cache sweep,
+which matched on a container name: a container called `containers` would have
+deleted `~/.config/containers` and every quadlet on the machine. It is gone.
+Anything similar proposed in future should be treated the same way: if the app
+cannot prove ownership, it reports rather than deletes.
+
 ## Verified facts about this machine
 
 Useful context, not assumptions the code should rely on. The code discovers all
