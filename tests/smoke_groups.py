@@ -68,6 +68,15 @@ def main() -> int:
     win.resize(768, 900)
     win.show()
 
+    # Isolate from live state. Without this the 5 second refresh and the install
+    # watcher push this machine's real services over each crafted payload, and
+    # the case under test is decided by whichever landed last.
+    win.refresh_timer.stop()
+    try:
+        win.watcher.changed.disconnect()
+    except Exception:
+        pass
+
     results: list[tuple[str, dict, dict]] = []
     idx = {"i": 0}
 
