@@ -164,6 +164,7 @@
             ${s.failed ? `<button class="btn-sm danger" data-act="clog" data-svc="${svc}">${I.warn}View log</button>` : ""}
             ${(meta.webPort && s.serving) ? `<button class="btn-open" data-act="open" data-port="${meta.webPort}" title="Open http://127.0.0.1:${meta.webPort}">Open ${I.external2}</button>` : ""}
             ${(meta.webPort && s.serving) ? addrButton(svc) : ""}
+            ${absent ? "" : trashButton("service", svc, ((s.removal || {}).offered ? "" : ((s.removal || {}).reason || "This can't be removed by the app.")))}
             ${(meta.hasModels && !absent) ? `<div class="chevron" data-act="expand">${I.chevron}</div>` : ""}
             ${absent
               ? `<div class="toggle disabled" data-act="toggle" role="switch" aria-checked="false" aria-disabled="true" title="${meta.name} isn't installed on this machine"><span class="knob"></span></div>`
@@ -634,6 +635,7 @@
               ${l.active ? `<button class="btn-open" data-act="open" data-port="9119" title="Open http://127.0.0.1:9119">Open ${I.external2}</button>` : ""}
               ${l.active ? addrButton(l.key) : ""}
               ${l.active ? `<button class="icon-btn" data-act="lrestart" data-svc="${esc(l.key)}" title="Restart ${esc(l.name)}" aria-label="Restart ${esc(l.name)}">${I.refresh}</button>` : ""}
+              ${trashButton("service", l.key, "")}
               <div class="chevron" data-act="lexpand" data-key="${esc(l.key)}" title="Show details">${I.chevron}</div>
               <div class="toggle" data-act="toggle" role="switch" aria-checked="${on}"><span class="knob"></span></div>
             </div>
@@ -1372,6 +1374,7 @@
       else if (act === "open") openUrl(localServiceUrl(el.dataset.port));
       else if (act === "addr") toggleAddr(el.dataset.key);
       else if (act === "copy") copyAddress(el);
+      else if (act === "remove") openRemoval(el.dataset.kind, el.dataset.key);
       else if (act === "lexpand") {
         const k = el.dataset.key;
         state.layerOpen[k] = !state.layerOpen[k];

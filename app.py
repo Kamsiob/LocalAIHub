@@ -107,7 +107,8 @@ class Backend(QObject):
                 st = svc.status()
                 services[key] = {"active": st.active, "serving": st.serving,
                                  "failed": st.failed, "result": st.result,
-                                 "present": st.present}
+                                 "present": st.present,
+                                 "removal": self._removal_offer(key)}
             except Exception:
                 services[key] = {"active": False, "serving": False, "failed": False,
                                  "present": True, "result": ""}
@@ -512,7 +513,17 @@ class Backend(QObject):
         if kind == "service":
             entry = next((a for a in state["apps"]["items"] if a["key"] == key), None)
             if entry is None:
-                return None
+                # Open WebUI and Hermes are quadlet services too. They are shown
+                # in the AI group rather than by generic discovery, so they are
+                # absent from apps, but they go through the same planner: there
+                # is no second removal path for them.
+                entry = self._ai_service_entry(key)
+            if entry is None:
+                offer = self._removal_offer(key)
+                m = removal.Manifest(key=key, name=key)
+                m.ok = False
+                m.reason = offer["reason"] or "This item could not be found."
+                return m
             m = removal.plan_container_service(entry)
             dep = deps.for_service(entry, state["apps"]["items"], state["services"])
             for user in dep.get("endpoint_users", []):
@@ -542,6 +553,60 @@ class Backend(QObject):
                 key, self.comfyui.models_dir, (entry or {}).get("size_bytes"),
                 memory.comfy_busy(self.comfyui), gguf)
         return None
+
+    # Stated once, here, so the interface and the planner cannot drift apart.
+    NOT_REMOVABLE = {
+        "ollama": ("Ollama's program files are in /usr/local, outside your home "
+                   "folder and owned by root. This app never asks for root, and "
+                   "removing its unit and models while leaving the program "
+                   "behind would be a half-finished job."),
+        "comfyui": ("ComfyUI's program, your models and your generated images "
+                    "all live inside one folder. This app can't tell them apart "
+                    "well enough to remove one and keep the others. Individual "
+                    "Ollama models can still be removed."),
+    }
+
+    def _removal_offer(self, key: str) -> dict:
+        """Whether a trash button is offered, and the reason when it is not.
+
+        Deliberately cheap and independent of _build_manifest, which calls
+        _collect and would recurse if the answer were computed by planning.
+        """
+        if key in self.NOT_REMOVABLE:
+            return {"offered": False, "reason": self.NOT_REMOVABLE[key]}
+        svc = self._services.get(key)
+        unit = getattr(svc, "unit", "") if svc else ""
+        if not unit:
+            return {"offered": False, "reason": ""}
+        unit_name = unit if unit.endswith(".service") else unit + ".service"
+        if removal._quadlet_for(unit_name) is None:
+            return {"offered": False,
+                    "reason": (f"{getattr(svc, 'display_name', key)} has no single "
+                               f"quadlet file this app can point to, so it cannot "
+                               f"describe exactly what it would delete.")}
+        return {"offered": True, "reason": ""}
+
+    def _ai_service_entry(self, key: str):
+        """An entry shaped like a discovered app, for an AI-group quadlet service.
+
+        Built from the same podman facts, so the planner cannot tell the
+        difference and no separate code path exists to keep in step.
+        """
+        svc = self._services.get(key)
+        if svc is None:
+            return None
+        unit = getattr(svc, "unit", "")
+        if not unit:
+            return None
+        unit_name = unit if unit.endswith(".service") else unit + ".service"
+        if removal._quadlet_for(unit_name) is None:
+            return None            # not a quadlet service, so not removable here
+        ports = {"openwebui": 3000, "hermes": 9119}
+        return {
+            "key": key, "unit": unit_name, "container": unit.replace(".service", ""),
+            "name": getattr(svc, "display_name", key), "kind": "",
+            "port": ports.get(key), "image": "",
+        }
 
     @Slot(str, str)
     def preview_removal(self, kind: str, key: str) -> None:
@@ -869,9 +934,61 @@ def _network_selftest() -> int:
     return 0 if res["state"] in ("newer", "current") else 1
 
 
+def _feature_selftest() -> int:
+    """`--self-test`: prove the 2.0 features work in a BUILT artifact.
+
+    Read only. It measures disk, reads memory, and PLANS a removal without
+    executing one, because the point is to show the built binary can do these
+    things on this machine, not to remove anything.
+    """
+    from hub import memory as _mem
+    from hub.sizes import human as _human
+
+    b = Backend()
+    print(f"install method : {app_update.install_method()}")
+    print(f"version        : {app_update.__version__}")
+
+    print("\ndisk")
+    b.disk._refresh()
+    snap = b.disk.snapshot()
+    for e in snap["entries"]:
+        print(f"  {e['label']:20} {e['state']:8} {e['human'] or e['note'][:44]}")
+    for fs in snap["filesystems"]:
+        print(f"  free on {fs['mount']:18} {fs['free_human']:>10} of {fs['total_human']}")
+
+    print("\nmemory")
+    hw = _mem.hardware()
+    print(f"  hardware       : {hw['kind']}")
+    print(f"  system memory  : {_human(hw['ram_available'])} available of {_human(hw['ram_total'])}")
+    print(f"  graphics memory: {_human(hw['vram_total']) if hw['vram_total'] else 'not reported'}")
+    resident = _mem.loaded_models()
+    print(f"  resident models: {[m['name'] for m in resident] or 'none'}")
+
+    print("\nremoval planning, nothing is removed")
+    state = b._collect()
+    services = state["apps"]["items"]
+    print(f"  services found : {len(services)}")
+    ok = blocked = 0
+    for entry in services:
+        m = b._build_manifest("service", entry["key"])
+        if m is None:
+            continue
+        if m.ok:
+            ok += 1
+            print(f"  {entry['name']:22} removable, {len(m.software_steps())} software step(s), "
+                  f"{len(m.data_steps())} data step(s), {len(m.kept)} kept")
+        else:
+            blocked += 1
+            print(f"  {entry['name']:22} not offered: {m.reason[:70]}")
+    print(f"  {ok} removable, {blocked} not offered")
+    return 0
+
+
 def main() -> int:
     if "--self-test-network" in sys.argv:
         return _network_selftest()
+    if "--self-test" in sys.argv:
+        return _feature_selftest()
     app = QApplication(sys.argv)
     app.setApplicationName("(Local) AI Hub")
     # Associates the window with local-ai-hub.desktop so KDE/Wayland groups it
