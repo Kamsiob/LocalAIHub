@@ -121,12 +121,19 @@ class ComfyUIService(Service):
         return results
 
     # --- activity (only meaningful while a job runs) -------------------------
-    def is_generating(self) -> bool:
-        """True if ComfyUI is actively running a generation (from /queue)."""
+    def is_generating(self):
+        """True, False, or None when it could not be determined.
+
+        None is not False. A caller deciding whether it is safe to delete a
+        model file must be able to tell "the queue is empty" apart from "the
+        queue could not be read", and swallowing the error into False told it
+        the wrong one. Pending work counts as busy too: a queued batch between
+        prompts is still work in progress.
+        """
         try:
             req = urllib.request.Request(f"{COMFYUI_HOST}/queue", method="GET")
             with urllib.request.urlopen(req, timeout=3) as resp:
                 data = json.loads(resp.read().decode("utf-8") or "{}")
-            return bool(data.get("queue_running"))
         except Exception:
-            return False
+            return None
+        return bool(data.get("queue_running")) or bool(data.get("queue_pending"))

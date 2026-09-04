@@ -115,12 +115,18 @@ def _get(path: str, timeout: float = 4.0) -> dict:
         return json.loads(resp.read().decode("utf-8") or "{}")
 
 
-def loaded_models() -> list:
-    """Models Ollama currently holds in memory, from its own /api/ps."""
+def loaded_models(strict: bool = False):
+    """Models Ollama currently holds in memory, from its own /api/ps.
+
+    With strict=True an unreadable answer returns None rather than an empty
+    list. A caller deciding whether a model is safe to delete must be able to
+    tell "nothing is loaded" apart from "Ollama did not answer"; the empty list
+    told it the first when it meant the second.
+    """
     try:
         data = _get("/api/ps")
     except Exception:
-        return []
+        return None if strict else []
     out = []
     for m in data.get("models", []):
         size = int(m.get("size") or 0)

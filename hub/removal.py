@@ -45,11 +45,12 @@ ICON_DIRS = [HOME / ".local" / "share" / "icons"]
 # Every deletable path must resolve under one of these. Anything else is refused
 # rather than reported, because a path outside them is a bug in the planner and
 # a bug in a planner that deletes files should stop the operation.
-ALLOWED_ROOTS = [
-    QUADLET_DIR, UNIT_DIR, APPS_DIR,
-    HOME / ".local" / "share" / "icons",
-    HOME / ".config", HOME / ".cache",
-]
+# Deliberately narrow. ~/.config and ~/.cache are NOT here: a container named
+# "containers" resolves to ~/.config/containers, which holds the quadlet files
+# for every service on the machine, and a container named after any desktop
+# application resolves to that application's configuration. The app cannot prove
+# it owns anything under those trees, so it does not delete there at all.
+ALLOWED_ROOTS = [QUADLET_DIR, UNIT_DIR]
 
 SOFTWARE = "software"
 DATA = "data"
@@ -81,9 +82,23 @@ def validate_path(raw, roots=None) -> Path | None:
     except (OSError, RuntimeError, ValueError):
         return None
 
+    # Containment by name is not containment on disk. shutil.rmtree recurses
+    # into a mounted filesystem and destroys its contents before failing on the
+    # final rmdir, so a bind mount or a symlinked root under an allowed root
+    # would take data living on another device entirely. hub/sizes.py already
+    # guards its read-only walk this way; the destructive path needs it more.
+    try:
+        home_dev = HOME.stat().st_dev
+        if resolved.lstat().st_dev != home_dev:
+            return None
+    except OSError:
+        return None
+
     for root in roots:
         try:
             rroot = root.resolve(strict=True)
+            if rroot.stat().st_dev != home_dev:
+                continue                    # a root that resolves off-device
         except (OSError, RuntimeError):
             continue
         if resolved == rroot:
@@ -128,9 +143,19 @@ def app_own_paths() -> set:
 
 
 def is_own_path(p) -> bool:
+    """True if p is, contains, or is contained by anything belonging to the app.
+
+    The ancestor direction matters as much as the descendant one: deleting a
+    directory that happens to contain the running app removes the app just as
+    thoroughly as deleting the app itself.
+    """
     resolved = _norm(p)
     for own in app_own_paths():
-        if resolved == own or resolved.startswith(own.rstrip("/") + "/"):
+        if resolved == own:
+            return True
+        if resolved.startswith(own.rstrip("/") + "/"):
+            return True
+        if own.startswith(resolved.rstrip("/") + "/"):
             return True
     return False
 
@@ -160,7 +185,8 @@ def _containers() -> list:
 
 
 def image_users(image: str, exclude_container: str) -> list:
-    """Other containers built on the same image. Never removes a shared image."""
+    """Other containers built on the same image. The image is never removed
+    either way, so this is disclosure rather than a safety decision."""
     out = []
     for c in _containers():
         names = c.get("Names") or []
@@ -171,18 +197,28 @@ def image_users(image: str, exclude_container: str) -> list:
     return out
 
 
-def volume_users(volume: str, exclude_container: str) -> list:
-    """Other containers mounting the same named volume."""
+def volume_users(volume: str, exclude_container: str) -> tuple:
+    """(other containers mounting this volume, whether that could be determined).
+
+    Fails closed. A podman command that errors, times out, or is missing tells
+    us nothing about who shares this volume, and "we could not ask" must never
+    be read as "nobody else uses it". The caller keeps the volume in that case.
+    """
+    all_containers = _containers()
+    if not all_containers:
+        return [], False
     out = []
-    for c in _containers():
+    for c in all_containers:
         names = c.get("Names") or []
-        if exclude_container in names:
+        if not names or exclude_container in names:
             continue
         cp = _podman("inspect", names[0], "--format",
-                     "{{range .Mounts}}{{.Name}} {{end}}") if names else None
-        if cp and cp.returncode == 0 and volume in cp.stdout.split():
+                     "{{range .Mounts}}{{.Name}} {{end}}")
+        if cp is None or cp.returncode != 0:
+            return [], False          # one unanswerable probe spoils the answer
+        if volume in cp.stdout.split():
             out.extend(names)
-    return out
+    return out, True
 
 
 def volume_size(volume: str):
@@ -291,7 +327,10 @@ def _quadlet_volumes(quadlet: Path) -> tuple:
         if source.startswith("/"):
             binds.append(source)
         elif source.endswith(".volume"):
-            named.append(source[:-len(".volume")])
+            # A .volume quadlet's podman name is not simply the file stem, and
+            # guessing it could name a different volume that belongs to
+            # something else. Refuse rather than guess.
+            binds.append("?" + source)
         elif source:
             named.append(source)
     return named, binds
@@ -328,8 +367,16 @@ def plan_container_service(entry: dict) -> Manifest:
 
     # A pod member is not a single-container service. Its siblings would be left
     # half removed, which is worse than not offering the button.
+    # Fails closed: if podman cannot answer, the app does not know whether this
+    # is a pod member, and removing one member of a pod leaves the rest half
+    # configured.
     inspect = _podman("inspect", container, "--format", "{{.Pod}}")
-    if inspect and inspect.returncode == 0 and inspect.stdout.strip():
+    if inspect is None or inspect.returncode != 0:
+        m.ok = False
+        m.reason = (f"Podman could not say whether {name} is part of a pod, so "
+                    f"this app will not remove it.")
+        return m
+    if inspect.stdout.strip():
         m.ok = False
         m.reason = (f"{name} is part of a pod of several containers. This app "
                     f"removes single-container services only.")
@@ -361,28 +408,31 @@ def plan_container_service(entry: dict) -> Manifest:
     # which is exactly the stale reference a clean removal is supposed to avoid.
     step("reset_failed", unit, f"Clear the leftover systemd state for {unit}")
 
-    # Config, cache, launcher and icon, only on an exact name match and only
-    # when they actually exist. Each is listed with its full path, because the
-    # user is the one deciding whether that directory is really this service's.
+    # No configuration, cache, launcher or icon is deleted. Those were matched
+    # by name, which is a guess: the app never reads anything saying the service
+    # owns ~/.config/<name>. A container named after a desktop application would
+    # take that application's configuration, and one named "containers" would
+    # take every quadlet on the machine. They are reported instead, so the user
+    # can look and decide, which is the part the app can honestly do.
     for base, kind in ((HOME / ".config", "configuration"),
                        (HOME / ".cache", "cache")):
         for candidate in {container, quadlet.stem}:
             d = base / candidate
-            vp = validate_path(d)
-            if vp and not is_own_path(vp):
-                step("rm_path", str(vp), f"Delete the {kind} folder {vp}")
+            if d.is_dir() and not is_own_path(d):
+                m.kept.append({
+                    "what": str(d),
+                    "why": (f"This looks like it could be {name}'s {kind}, but "
+                            f"nothing says so, so it is left alone. Remove it "
+                            f"yourself if you know it belongs to this service."),
+                })
     for candidate in {container, quadlet.stem}:
         desktop = APPS_DIR / f"{candidate}.desktop"
-        vp = validate_path(desktop)
-        if vp and not is_own_path(vp):
-            step("rm_path", str(vp), f"Delete the launcher entry {vp}")
-        for icons in ICON_DIRS:
-            if not icons.is_dir():
-                continue
-            for icon in icons.rglob(f"{candidate}.*"):
-                vp = validate_path(icon)
-                if vp and not is_own_path(vp):
-                    step("rm_path", str(vp), f"Delete the icon {vp}")
+        if desktop.exists() and not is_own_path(desktop):
+            m.kept.append({
+                "what": str(desktop),
+                "why": ("A launcher entry with a matching name. Left alone, "
+                        "because a matching name is not proof of ownership."),
+            })
 
     named, binds = _quadlet_volumes(quadlet)
 
@@ -400,6 +450,14 @@ def plan_container_service(entry: dict) -> Manifest:
         })
 
     for host_path in binds:
+        if host_path.startswith("?"):
+            m.kept.append({
+                "what": host_path[1:],
+                "why": ("This is declared through a .volume file, and the app "
+                        "cannot be certain which podman volume that names, so "
+                        "it is left alone."),
+            })
+            continue
         m.kept.append({
             "what": host_path,
             "why": ("This is a folder of yours that the service was reading. "
@@ -407,7 +465,14 @@ def plan_container_service(entry: dict) -> Manifest:
         })
 
     for vol in named:
-        others = volume_users(vol, container)
+        others, determined = volume_users(vol, container)
+        if not determined:
+            m.kept.append({
+                "what": f"The volume {vol}",
+                "why": ("Podman could not say whether anything else uses this "
+                        "volume, so it is left alone."),
+            })
+            continue
         if others:
             m.kept.append({
                 "what": f"The volume {vol}",
@@ -450,7 +515,13 @@ def _rm_validated(target: str) -> tuple:
         else:
             return False, "refused: not a regular file or directory"
     except OSError as exc:
-        return False, f"{exc.strerror or exc}"
+        # rmtree deletes depth first, so a failure partway means part of the
+        # tree is already gone. Saying only "Device or resource busy" would
+        # leave the user believing nothing happened here.
+        still = vp.exists()
+        note = (" Part of this may already have been deleted."
+                if still and vp.is_dir() else "")
+        return False, f"{exc.strerror or exc}.{note}"
     return True, "removed"
 
 
@@ -465,7 +536,11 @@ def _run_step(step: Step) -> tuple:
     if step.action == "rm_container":
         cp = _podman("container", "exists", step.target)
         if cp is None:
-            return False, "podman is not available"
+            return False, "podman did not answer, so nothing was changed"
+        # `exists` returns 1 for absent and 125 for a storage error. Only the
+        # first means the work is already done.
+        if cp.returncode == 125:
+            return False, "podman reported a storage error"
         if cp.returncode != 0:
             return True, "already gone"
         rm = _podman("rm", "-f", step.target, timeout=60)
@@ -485,8 +560,10 @@ def _run_step(step: Step) -> tuple:
         return _rm_validated(step.target)
 
     if step.action == "reset_failed":
-        run_systemctl("reset-failed", step.target)
-        return True, "cleared"          # nothing to clear is a fine outcome
+        # Nothing to clear is a fine outcome, so this reports what happened
+        # rather than asserting success it did not verify.
+        cp = run_systemctl("reset-failed", step.target)
+        return True, "cleared" if cp.returncode == 0 else "nothing to clear"
 
     if step.action == "reload":
         cp = run_systemctl("daemon-reload")
@@ -495,7 +572,9 @@ def _run_step(step: Step) -> tuple:
     if step.action == "rm_volume":
         cp = _podman("volume", "exists", step.target)
         if cp is None:
-            return False, "podman is not available"
+            return False, "podman did not answer, so nothing was changed"
+        if cp.returncode == 125:
+            return False, "podman reported a storage error"
         if cp.returncode != 0:
             return True, "already gone"
         rm = _podman("volume", "rm", step.target, timeout=120)
@@ -545,7 +624,13 @@ def execute(manifest: Manifest, token: str, include_data: bool, replan=None,
     for i, step in enumerate(planned):
         if progress:
             progress(i, len(planned), step.label)
-        ok, detail = _run_step(step)
+        try:
+            ok, detail = _run_step(step)
+        except Exception as exc:  # noqa: BLE001
+            # An exception must not discard the record of what already ran. A
+            # user told "nothing was removed" about a half-finished removal
+            # cannot recover from it.
+            ok, detail = False, f"stopped unexpectedly: {exc}"
         if not ok:
             failed = {"step": step.to_dict(), "detail": detail}
             break
@@ -579,6 +664,12 @@ def plan_ollama_model(name: str, size: int | None, resident: bool,
         m.ok = False
         m.reason = "Ollama is stopped, so its models cannot be removed. Start it to manage them."
         return m
+    if resident is None:
+        m.ok = False
+        m.reason = ("Ollama did not say what is in memory, so this app cannot "
+                    "tell whether this model is in use. It will not remove it "
+                    "until it can.")
+        return m
     if resident:
         m.ok = False
         m.reason = ("This model is in memory right now. Release it first, then "
@@ -611,39 +702,25 @@ def plan_ollama_model(name: str, size: int | None, resident: bool,
     return m
 
 
-def plan_comfy_model(path: str, models_root: Path, size: int | None,
-                     busy, gguf: dict) -> Manifest:
-    """A manifest for one ComfyUI model file.
+def plan_comfy_model(path: str, models_root: Path, size, busy, gguf: dict) -> Manifest:
+    """Not offered in 2.0. This returns a refusal, deliberately.
 
-    Deleting a file here is not always recoverable: unlike an Ollama model there
-    may be no registry to fetch it from again. The preview says so when the
-    source is unknown.
+    Two reasons, and either alone would be enough. An Ollama model can always be
+    fetched again by name; a ComfyUI model file often cannot, because a file
+    pulled from a direct link or a gallery may have no recorded source to get it
+    back from, which makes deleting one closer to deleting data than to
+    uninstalling software. And the first version of this planner validated
+    against the models folder while the executor validated against a different
+    set of roots, so every deletion would have been promised in the preview and
+    then refused at execution. A preview that cannot be honored is worse than no
+    button.
+
+    Sizes for these files are still shown. Only the deletion is withheld.
     """
-    name = Path(path).name
-    m = Manifest(key=f"comfy:{path}", name=name)
-
-    if busy is None:
-        m.ok = False
-        m.reason = ("Whether ComfyUI is running a job could not be determined, "
-                    "so model files cannot be removed right now.")
-        return m
-    if busy:
-        m.ok = False
-        m.reason = ("ComfyUI is running a job. Model files cannot be removed "
-                    "until the queue is empty.")
-        return m
-
-    vp = validate_path(path, roots=[models_root])
-    if vp is None:
-        m.ok = False
-        m.reason = (f"{name} is not inside {models_root}, so this app will not "
-                    f"delete it.")
-        return m
-
-    m.steps.append(Step(1, "rm_path", str(vp), f"Delete {vp}", SOFTWARE, size))
-
-    if str(name).lower().endswith(".gguf") and not gguf.get("node_present"):
-        m.notes.append("The ComfyUI-GGUF node is not installed, so this file "
-                       "could not be loaded anyway.")
-    m.token = m.compute_token()
+    m = Manifest(key=f"comfy:{path}", name=Path(path).name)
+    m.ok = False
+    m.reason = ("Removing ComfyUI model files isn't offered yet. Some have no "
+                "recorded source to download them again from, so deleting one "
+                "can be permanent in a way that removing an Ollama model is "
+                "not. You can delete the file yourself if you are sure.")
     return m

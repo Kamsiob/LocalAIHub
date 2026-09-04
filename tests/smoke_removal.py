@@ -107,8 +107,18 @@ def main() -> int:
 
     art = software_artifacts_present()
     print(f"      software artifacts after: {json.dumps(art)}")
-    for name in ("quadlet", "config", "cache", "desktop", "icon", "container"):
-        check(f"software gone: {name}", art[name] is False)
+    # What the app can prove belongs to the service goes.
+    for name in ("quadlet", "container"):
+        check(f"removed, because the quadlet declares it: {name}", art[name] is False)
+    # What it can only guess at stays, and is reported instead. A container
+    # named after a desktop application would otherwise take that
+    # application's configuration.
+    for name in ("config", "cache", "desktop", "icon"):
+        check(f"kept, because a matching name is not proof of ownership: {name}",
+              art[name] is True)
+    check("the guessed paths are reported rather than silently ignored",
+          any("/.config/lah-testsvc" in k["what"] for k in res.get("kept", [])),
+          "; ".join(k["what"] for k in res.get("kept", []))[:90])
     check("systemd no longer reports the unit active", art["unit"] != "active", art["unit"])
     check("the kept list explains the volume was left",
           any("data was not included" in k["why"] for k in res.get("kept", [])))
@@ -152,15 +162,21 @@ def main() -> int:
     e = entry_for("lah-testsvc")
     m = plan_container_service(e)
     stale_token = m.token
-    (Path.home() / ".config/lah-testsvc-extra").mkdir(exist_ok=True)
-    sh("bash", "-c", "rm -rf ~/.cache/lah-testsvc")      # the system moves on
+    # Change something the plan actually covers. A cache directory would not do:
+    # those are no longer part of any plan, so touching one correctly leaves the
+    # token alone. Adding a volume to the quadlet adds a real data step.
+    sh("podman", "volume", "create", "lah-testdata2")
+    q = Path.home() / ".config/containers/systemd/lah-testsvc.container"
+    q.write_text(q.read_text().replace("Volume=lah-testdata:/data",
+                                       "Volume=lah-testdata:/data\nVolume=lah-testdata2:/data2"))
+    sh("systemctl", "--user", "daemon-reload")
     res = execute(m, stale_token, include_data=False,
                   replan=lambda: plan_container_service(entry_for("lah-testsvc") or e))
     check("stale confirmation refused, nothing removed",
           not res["ok"] and not res["done"], res["detail"])
     check("the quadlet is still there after the refusal",
           (Path.home() / ".config/containers/systemd/lah-testsvc.container").exists())
-    (Path.home() / ".config/lah-testsvc-extra").rmdir()
+    sh("podman", "volume", "rm", "-f", "lah-testdata2")
 
     # ---------------------------------------------------------------- 6
     print("\n6. THE APP REFUSES TO REMOVE ITSELF")

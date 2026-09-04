@@ -7,6 +7,7 @@ status + the real Ollama model list) and opens the browse links in a real
 browser. Active controls (start/stop, model update) and theme persistence are
 added in Phase 4.
 """
+import fcntl
 import json
 import os
 import sys
@@ -85,6 +86,11 @@ class Backend(QObject):
         self.disk = DiskUsage(self.ollama, self.comfyui)
         self._op_lock = threading.Lock()
         self._op_name = ""
+        # A second copy of the app is a second process, so a threading.Lock says
+        # nothing about it. The file lock is what makes "two removals cannot run
+        # at once" true of the machine rather than of one process.
+        self._lock_path = config.CONFIG_DIR / "operation.lock"
+        self._lock_fh = None
         self._last_failed: dict = {}   # for one-shot "stopped unexpectedly" alerts
         self._last_present: dict = {}  # for one-shot install/uninstall alerts
         self._ollama_updates: dict = {}   # model name -> last update-check result
@@ -382,6 +388,11 @@ class Backend(QObject):
             self.notify.emit(f"Busy with {self._op_name or 'another operation'}. "
                              f"Try again when it finishes.")
             return False
+        if not self._take_file_lock():
+            self._op_lock.release()
+            self.notify.emit("Another copy of this app is in the middle of an "
+                             "operation. Try again when it finishes.")
+            return False
         self._op_name = name
 
         def work() -> None:
@@ -389,10 +400,41 @@ class Backend(QObject):
                 fn()
             finally:
                 self._op_name = ""
+                self._drop_file_lock()
                 self._op_lock.release()
 
         threading.Thread(target=work, daemon=True).start()
         return True
+
+    def _take_file_lock(self) -> bool:
+        """Exclusive across processes, or False. Never blocks."""
+        try:
+            self._lock_path.parent.mkdir(parents=True, exist_ok=True)
+            fh = open(self._lock_path, "w")
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            try:
+                fh.close()
+            except Exception:
+                pass
+            return False
+        except Exception:
+            return False
+        self._lock_fh = fh
+        return True
+
+    def _drop_file_lock(self) -> None:
+        fh, self._lock_fh = self._lock_fh, None
+        if fh is None:
+            return
+        try:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+        except Exception:
+            pass
+        try:
+            fh.close()
+        except Exception:
+            pass
 
     def _refresh_async(self) -> None:
         def work() -> None:
@@ -482,11 +524,14 @@ class Backend(QObject):
             return m
         if kind == "ollama":
             model = next((m for m in state["models"] if m["name"] == key), None)
-            loaded = {x["name"] for x in state["memory"]["loaded"]}
+            # strict: an unreadable /api/ps must not read as "nothing loaded".
+            live = memory.loaded_models(strict=True)
+            loaded = None if live is None else {x["name"] for x in live}
             dep = deps.for_ollama_model(key, state["layers"], state["apps"]["items"],
                                         state["services"])
             return removal.plan_ollama_model(
-                key, (model or {}).get("size_bytes"), key in loaded,
+                key, (model or {}).get("size_bytes"),
+                None if loaded is None else (key in loaded),
                 bool(state["services"]["ollama"]["active"]), dep)
         if kind == "comfy":
             entry = next((m for m in state["comfyui_models"] if m.get("path") == key), None)
@@ -548,7 +593,14 @@ class Backend(QObject):
             self.disk.invalidate()
             self.state_changed.emit(json.dumps(self._collect()))
 
-        self._run_exclusive(f"removing {key}", work)
+        if not self._run_exclusive(f"removing {key}", work):
+            # The modal is sitting on "Removing...". Tell it nothing started, or
+            # it waits forever for a result that will never arrive.
+            self.removal_result.emit(json.dumps(
+                {"ok": False, "done": [], "failed": None, "remaining": [],
+                 "name": key,
+                 "detail": ("Something else is running, so nothing was removed. "
+                            "Try again when it finishes.")}))
 
     @Slot(str)
     def release_memory(self, name: str) -> None:
