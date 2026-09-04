@@ -473,6 +473,14 @@ def _run_step(step: Step) -> tuple:
             return False, (rm.stderr or "").strip() if rm else "podman rm failed"
         return True, "removed"
 
+    if step.action == "rm_model":
+        from .services.ollama import OllamaService
+        try:
+            OllamaService().remove_model(step.target)
+        except Exception as exc:
+            return False, str(exc)
+        return True, "removed"
+
     if step.action == "rm_path":
         return _rm_validated(step.target)
 
@@ -556,3 +564,86 @@ def execute(manifest: Manifest, token: str, include_data: bool, replan=None,
         "detail": ("Removed." if failed is None else
                    "Stopped at the first step that failed. Nothing after it was attempted."),
     }
+
+
+def plan_ollama_model(name: str, size: int | None, resident: bool,
+                      ollama_active: bool, dep: dict) -> Manifest:
+    """A manifest for one Ollama model.
+
+    A model is software rather than data: it is a download that can be fetched
+    again by name. It still gets a full preview with its size, because 20 GB
+    over a slow link is a real cost even when it is recoverable.
+    """
+    m = Manifest(key=f"ollama:{name}", name=name)
+    if not ollama_active:
+        m.ok = False
+        m.reason = "Ollama is stopped, so its models cannot be removed. Start it to manage them."
+        return m
+    if resident:
+        m.ok = False
+        m.reason = ("This model is in memory right now. Release it first, then "
+                    "it can be removed.")
+        return m
+
+    m.steps.append(Step(1, "rm_model", name, f"Remove the model {name}", SOFTWARE, size))
+
+    for c in dep.get("consumers", []):
+        m.dependencies.append({
+            "what": c["name"],
+            "breaks": c["detail"],
+            "options": (["Point it at a different installed model first",
+                         "Remove the model anyway and reconfigure later"]
+                        if c.get("repointable") else []),
+        })
+    for u in dep.get("unknown", []):
+        m.dependencies.append({
+            "what": u["name"], "breaks": u["detail"],
+            "options": ["Treat this as risky: the app could not check it"],
+        })
+    users = dep.get("endpoint_users") or []
+    if users:
+        verb = "points" if len(users) == 1 else "point"
+        m.notes.append(
+            f"{', '.join(users)} {verb} at Ollama rather than at this model, so "
+            f"{'it keeps' if len(users) == 1 else 'they keep'} working. "
+            f"{'It' if len(users) == 1 else 'They'} will simply stop listing it.")
+    m.token = m.compute_token()
+    return m
+
+
+def plan_comfy_model(path: str, models_root: Path, size: int | None,
+                     busy, gguf: dict) -> Manifest:
+    """A manifest for one ComfyUI model file.
+
+    Deleting a file here is not always recoverable: unlike an Ollama model there
+    may be no registry to fetch it from again. The preview says so when the
+    source is unknown.
+    """
+    name = Path(path).name
+    m = Manifest(key=f"comfy:{path}", name=name)
+
+    if busy is None:
+        m.ok = False
+        m.reason = ("Whether ComfyUI is running a job could not be determined, "
+                    "so model files cannot be removed right now.")
+        return m
+    if busy:
+        m.ok = False
+        m.reason = ("ComfyUI is running a job. Model files cannot be removed "
+                    "until the queue is empty.")
+        return m
+
+    vp = validate_path(path, roots=[models_root])
+    if vp is None:
+        m.ok = False
+        m.reason = (f"{name} is not inside {models_root}, so this app will not "
+                    f"delete it.")
+        return m
+
+    m.steps.append(Step(1, "rm_path", str(vp), f"Delete {vp}", SOFTWARE, size))
+
+    if str(name).lower().endswith(".gguf") and not gguf.get("node_present"):
+        m.notes.append("The ComfyUI-GGUF node is not installed, so this file "
+                       "could not be loaded anyway.")
+    m.token = m.compute_token()
+    return m

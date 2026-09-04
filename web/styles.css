@@ -523,6 +523,48 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .ver-result.current svg { color: var(--ok); }
 .ver-actions { display: flex; gap: 10px; margin-top: 11px; flex-wrap: wrap; }
 
+/* ---------- removal preview ----------
+   Reuses the existing modal chassis. The destructive control is an outline
+   button in the app's existing danger style, never a filled red block, and
+   warn color appears on the data section only, because that is the only part
+   that is actually irreversible. */
+.rm-sec { margin-top: 16px; }
+.rm-sec-h { font-size: 12px; color: var(--text-faint); text-transform: uppercase;
+  letter-spacing: .06em; font-weight: 600; margin-bottom: 8px; }
+.rm-list { background: var(--surface-inset); border: 1px solid var(--border);
+  border-radius: 12px; padding: 8px 12px; max-height: 210px; overflow-y: auto; }
+.rm-row { display: flex; align-items: baseline; gap: 10px; padding: 5px 0;
+  font-size: 12.5px; color: var(--text); }
+.rm-row .rm-path { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px; color: var(--text-muted); word-break: break-all; flex: 1 1 auto; }
+.rm-row .rm-size { color: var(--text-faint); font-variant-numeric: tabular-nums; flex: none; }
+
+/* The data section is visually separate and never pre-selected. */
+.rm-data { border: 1px solid color-mix(in srgb, var(--warn) 38%, transparent);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  border-radius: 12px; padding: 12px 14px; margin-top: 16px; }
+.rm-data .rm-sec-h { color: var(--warn); margin-bottom: 6px; }
+.rm-optin { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px;
+  font-size: 13px; line-height: 1.55; color: var(--text); cursor: pointer; }
+.rm-optin input { margin-top: 3px; flex: none; width: 16px; height: 16px; accent-color: var(--warn); }
+.rm-kept { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; }
+.rm-kept li { margin: 4px 0; }
+.rm-dep { display: flex; gap: 10px; align-items: flex-start; padding: 11px 13px;
+  border-radius: 12px; margin-top: 10px; font-size: 12.5px; line-height: 1.6;
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 32%, transparent); color: var(--text); }
+.rm-dep svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--warn); }
+.rm-blocked { font-size: 13px; line-height: 1.6; color: var(--text-muted);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 14px; }
+.rm-step-done { color: var(--ok); }
+.rm-step-failed { color: var(--err); }
+
+/* the trash affordance, quiet until hovered, never competing with the toggle */
+.icon-btn.danger:hover { color: var(--err); border-color: color-mix(in srgb, var(--err) 45%, transparent); }
+.icon-btn[disabled] { opacity: .4; cursor: default; }
+.icon-btn[disabled]:hover { color: var(--text-muted); border-color: var(--border); }
+
 /* ---------- browse links ---------- */
 .browse { margin-top: 26px; }
 .browse-head { font-size: 12px; color: var(--text-faint); text-transform: uppercase;

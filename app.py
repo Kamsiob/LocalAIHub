@@ -34,7 +34,9 @@ sys.path.insert(0, str(ROOT))
 from hub import addresses  # noqa: E402
 from hub import app_update  # noqa: E402
 from hub import config  # noqa: E402
+from hub import deps  # noqa: E402
 from hub import memory  # noqa: E402
+from hub import removal  # noqa: E402
 from hub.sizes import DiskUsage  # noqa: E402
 from hub.guide import GUIDE  # noqa: E402
 from hub.layers import build_layers  # noqa: E402
@@ -54,6 +56,8 @@ class Backend(QObject):
     setup_result = Signal(str)    # JSON of a fresh setup-check run (after a fix)
     download_progress = Signal(str)  # JSON: {active, label, fraction, stage}
     app_update_result = Signal(str)  # JSON of a user-triggered version check
+    removal_preview = Signal(str)    # JSON manifest for the preview screen
+    removal_result = Signal(str)     # JSON outcome after a confirmed removal
 
     def __init__(self) -> None:
         super().__init__()
@@ -458,6 +462,93 @@ class Backend(QObject):
                 time.sleep(1)
 
         self._run_exclusive("start or stop a service", work)
+
+    # --- removal ------------------------------------------------------------
+    def _build_manifest(self, kind: str, key: str):
+        """One manifest for any removable thing. Planning never deletes."""
+        state = self._collect()
+        if kind == "service":
+            entry = next((a for a in state["apps"]["items"] if a["key"] == key), None)
+            if entry is None:
+                return None
+            m = removal.plan_container_service(entry)
+            dep = deps.for_service(entry, state["apps"]["items"], state["services"])
+            for user in dep.get("endpoint_users", []):
+                m.dependencies.append({
+                    "what": user,
+                    "breaks": f"{user} is configured to reach this service and will stop working.",
+                    "options": ["Remove it anyway", "Point that service somewhere else first"],
+                })
+            return m
+        if kind == "ollama":
+            model = next((m for m in state["models"] if m["name"] == key), None)
+            loaded = {x["name"] for x in state["memory"]["loaded"]}
+            dep = deps.for_ollama_model(key, state["layers"], state["apps"]["items"],
+                                        state["services"])
+            return removal.plan_ollama_model(
+                key, (model or {}).get("size_bytes"), key in loaded,
+                bool(state["services"]["ollama"]["active"]), dep)
+        if kind == "comfy":
+            entry = next((m for m in state["comfyui_models"] if m.get("path") == key), None)
+            gguf = deps.gguf_relationship(
+                state["comfyui_models"],
+                (self.comfyui.root / "custom_nodes" / "ComfyUI-GGUF").is_dir())
+            return removal.plan_comfy_model(
+                key, self.comfyui.models_dir, (entry or {}).get("size_bytes"),
+                memory.comfy_busy(self.comfyui), gguf)
+        return None
+
+    @Slot(str, str)
+    def preview_removal(self, kind: str, key: str) -> None:
+        """Build and show the manifest. This never removes anything."""
+        def work() -> None:
+            try:
+                m = self._build_manifest(kind, key)
+            except Exception as exc:  # noqa: BLE001
+                m = None
+                self.notify.emit(f"Could not work out what would be removed ({exc}).")
+            if m is None:
+                self.removal_preview.emit(json.dumps(
+                    {"ok": False, "name": key, "kind": kind,
+                     "reason": "This item could not be found, so nothing can be previewed."}))
+                return
+            payload = m.to_dict()
+            payload["kind"] = kind
+            self.removal_preview.emit(json.dumps(payload))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    @Slot(str, str, str, bool)
+    def confirm_removal(self, kind: str, key: str, token: str, include_data: bool) -> None:
+        """Carry out a previously previewed manifest, and only that one."""
+        def work() -> None:
+            m = self._build_manifest(kind, key)
+            if m is None:
+                self.removal_result.emit(json.dumps(
+                    {"ok": False, "detail": "This item is no longer here, so nothing was removed."}))
+                return
+
+            def progress(i, total, label):
+                self._progress(True, label, (i / total) if total else 0.0, f"{i + 1} of {total}")
+
+            try:
+                res = removal.execute(
+                    m, token, include_data,
+                    replan=lambda: self._build_manifest(kind, key),
+                    progress=progress)
+            except Exception as exc:  # noqa: BLE001
+                res = {"ok": False, "done": [], "failed": None, "remaining": [],
+                       "detail": f"Stopped: {exc}"}
+            finally:
+                self._progress(False, "", 1.0, "done")
+
+            res["name"] = m.name
+            self.removal_result.emit(json.dumps(res))
+            self.notify.emit(res.get("detail", "done"))
+            self.disk.invalidate()
+            self.state_changed.emit(json.dumps(self._collect()))
+
+        self._run_exclusive(f"removing {key}", work)
 
     @Slot(str)
     def release_memory(self, name: str) -> None:

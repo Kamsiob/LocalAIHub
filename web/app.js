@@ -20,6 +20,7 @@
     // the app doesn't know what someone self-hosts and shouldn't pretend to by
     // inventing a per-service glyph.
     box: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.2v9.6L12 21l-8-4.2V7.2L12 3z"/><path d="M4 7.2l8 4.2 8-4.2M12 11.4V21"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 7V5.5A1.5 1.5 0 0111.5 4h1A1.5 1.5 0 0114 5.5V7"/><path d="M6.5 7l.7 11a2 2 0 002 1.9h5.6a2 2 0 002-1.9l.7-11"/><path d="M10.5 11v5M13.5 11v5"/></svg>',
     sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/></svg>',
     moon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/></svg>',
     chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
@@ -248,6 +249,171 @@
     return ` · <span class="group-size">${esc(bytesHuman(total))}</span>`;
   }
 
+
+  // ---- removal -------------------------------------------------------------
+  // Preview first, always. The confirm button is bound to the token of the plan
+  // that was shown, so approving one plan can never carry out a different one.
+  let rmState = { kind: "", key: "", token: "", hasData: false, running: false };
+
+  function trashButton(kind, key, disabledReason) {
+    const off = disabledReason
+      ? ` disabled title="${esc(disabledReason)}"`
+      : ` title="Remove this"`;
+    return `<button class="icon-btn${disabledReason ? "" : " danger"}" data-act="remove"
+      data-kind="${esc(kind)}" data-key="${esc(key)}"${off}
+      aria-label="Remove">${I.trash}</button>`;
+  }
+
+  function buildRemovalModal() {
+    const bd = document.createElement("div");
+    bd.className = "modal-backdrop";
+    bd.id = "rmModal";
+    bd.innerHTML = `
+      <div class="modal">
+        <h3 id="rmTitle">Remove</h3>
+        <div class="sub" id="rmSub">Working out exactly what would be removed.</div>
+        <div id="rmBody"></div>
+        <div class="modal-foot">
+          <button class="btn-ghost" id="rmCancel">Cancel</button>
+          <button class="btn-sm danger" id="rmGo" style="display:none"></button>
+        </div>
+      </div>`;
+    document.body.appendChild(bd);
+    bd.addEventListener("click", e => { if (e.target === bd) closeRemoval(); });
+    bd.querySelector("#rmCancel").addEventListener("click", closeRemoval);
+    bd.querySelector("#rmGo").addEventListener("click", onConfirmRemoval);
+    bd.addEventListener("change", e => {
+      if (e.target && e.target.id === "rmData") updateConfirmLabel();
+    });
+  }
+
+  function closeRemoval() {
+    if (rmState.running) return;      // never vanish mid-operation
+    document.getElementById("rmModal").classList.remove("show");
+  }
+
+  function openRemoval(kind, key) {
+    if (!backend || !backend.preview_removal) { toast("Not connected to backend"); return; }
+    rmState = { kind, key, token: "", hasData: false, running: false };
+    const bd = document.getElementById("rmModal");
+    bd.querySelector("#rmTitle").textContent = "Remove";
+    bd.querySelector("#rmSub").textContent = "Working out exactly what would be removed.";
+    bd.querySelector("#rmBody").innerHTML = "";
+    bd.querySelector("#rmGo").style.display = "none";
+    bd.classList.add("show");
+    backend.preview_removal(kind, key);
+  }
+
+  function stepRows(steps) {
+    return steps.map(s => `<div class="rm-row"><span class="rm-path">${esc(s.label)}</span>` +
+      `<span class="rm-size">${s.size ? esc(bytesHuman(s.size)) : ""}</span></div>`).join("");
+  }
+
+  function renderRemovalPreview(m) {
+    const bd = document.getElementById("rmModal");
+    const body = bd.querySelector("#rmBody");
+    const go = bd.querySelector("#rmGo");
+    bd.querySelector("#rmTitle").textContent = `Remove ${m.name || ""}`.trim();
+
+    if (!m.ok) {
+      bd.querySelector("#rmSub").textContent = "This cannot be removed.";
+      body.innerHTML = `<div class="rm-blocked">${esc(m.reason || "No reason was given.")}</div>`;
+      go.style.display = "none";
+      return;
+    }
+
+    rmState.token = m.token;
+    rmState.hasData = (m.data || []).length > 0;
+    bd.querySelector("#rmSub").textContent =
+      "Everything below will be removed. Nothing else.";
+
+    let html = `<div class="rm-sec"><div class="rm-sec-h">Software to remove</div>
+      <div class="rm-list">${stepRows(m.software || [])}</div></div>`;
+
+    (m.dependencies || []).forEach(d => {
+      const opts = (d.options || []).length
+        ? `<ul class="rm-kept">${d.options.map(o => `<li>${esc(o)}</li>`).join("")}</ul>` : "";
+      html += `<div class="rm-dep">${I.warn}<div><b>${esc(d.what)}</b> ${esc(d.breaks)}${opts}</div></div>`;
+    });
+
+    if (rmState.hasData) {
+      // Its own section, its own checkbox, never pre-selected, and the thing it
+      // deletes is named rather than described as "data".
+      html += `<div class="rm-data"><div class="rm-sec-h">Your data</div>
+        <div class="rm-list">${stepRows(m.data)}</div>
+        <label class="rm-optin"><input type="checkbox" id="rmData">
+        <span>Also permanently delete the data listed above. This cannot be undone,
+        and it is not needed to remove the software.</span></label></div>`;
+    }
+
+    if ((m.kept || []).length) {
+      html += `<div class="rm-sec"><div class="rm-sec-h">Left in place</div>
+        <ul class="rm-kept">${m.kept.map(k =>
+          `<li><b>${esc(k.what)}</b> ${esc(k.why)}</li>`).join("")}</ul></div>`;
+    }
+    (m.notes || []).forEach(n => {
+      html += `<div class="rm-sec"><div class="rm-kept">${esc(n)}</div></div>`;
+    });
+
+    body.innerHTML = html;
+    go.style.display = "";
+    updateConfirmLabel();
+  }
+
+  function updateConfirmLabel() {
+    const go = document.getElementById("rmGo");
+    const box = document.getElementById("rmData");
+    // The label states the consequence, so a reflexive click still reads what
+    // it is about to do.
+    go.textContent = (box && box.checked)
+      ? "Remove and permanently delete the data"
+      : "Remove the software";
+  }
+
+  function onConfirmRemoval() {
+    if (rmState.running) return;
+    const box = document.getElementById("rmData");
+    const includeData = !!(box && box.checked);
+    rmState.running = true;
+    const go = document.getElementById("rmGo");
+    go.disabled = true;
+    go.textContent = "Removing…";
+    document.getElementById("rmSub").textContent = "Removing. Each step is done in order.";
+    backend.confirm_removal(rmState.kind, rmState.key, rmState.token, includeData);
+  }
+
+  function renderRemovalResult(res) {
+    rmState.running = false;
+    const bd = document.getElementById("rmModal");
+    const go = bd.querySelector("#rmGo");
+    go.style.display = "none";
+    go.disabled = false;
+    bd.querySelector("#rmTitle").textContent = res.ok ? "Removed" : "Stopped";
+    bd.querySelector("#rmSub").textContent = res.detail || "";
+
+    let html = "";
+    if ((res.done || []).length) {
+      html += `<div class="rm-sec"><div class="rm-sec-h">Done</div><div class="rm-list">` +
+        res.done.map(d => `<div class="rm-row"><span class="rm-path rm-step-done">${esc(d.step.label)}</span></div>`).join("") +
+        `</div></div>`;
+    }
+    if (res.failed) {
+      html += `<div class="rm-dep">${I.warn}<div><b>${esc(res.failed.step.label)}</b> did not
+        finish: ${esc(res.failed.detail)}. Nothing after this was attempted, so the rest is
+        still in place.</div></div>`;
+    }
+    if ((res.remaining || []).length) {
+      html += `<div class="rm-sec"><div class="rm-sec-h">Not done</div><div class="rm-list">` +
+        res.remaining.map(s => `<div class="rm-row"><span class="rm-path">${esc(s.label)}</span></div>`).join("") +
+        `</div></div>`;
+    }
+    if ((res.kept || []).length) {
+      html += `<div class="rm-sec"><div class="rm-sec-h">Left in place</div>
+        <ul class="rm-kept">${res.kept.map(k => `<li><b>${esc(k.what)}</b> ${esc(k.why)}</li>`).join("")}</ul></div>`;
+    }
+    bd.querySelector("#rmBody").innerHTML = html;
+  }
+
   // ---- reachable-at -------------------------------------------------------
   // "Open" still goes to 127.0.0.1, which is right on this machine and is what
   // the button is for. This is the separate question — what do I type on my
@@ -357,6 +523,7 @@
             <div class="svc-right">
               ${a.serving ? `<button class="btn-open" data-act="openurl" data-url="${esc((a.reachable[0] || {}).url || "")}">Open ${I.external2}</button>` : ""}
               ${a.serving ? addrButton(a.key) : ""}
+              ${trashButton("service", a.key, "")}
               <div class="toggle" data-act="apptoggle" data-unit="${esc(a.unit)}" role="switch" aria-checked="${on}"><span class="knob"></span></div>
             </div>
           </div>
@@ -509,6 +676,7 @@
         <span class="badge ${m.loaded ? "loaded" : ""}"><span class="b-dot"></span>${m.loaded ? "In memory" : "On disk"}</span>
         ${m.loaded ? `<button class="btn-sm" data-act="release" data-model="${esc(m.name)}" title="${esc(state.memory.explainer || "")}">Release memory</button>` : ""}
         ${ollamaAction(m)}
+        ${trashButton("ollama", m.name, m.loaded ? "This model is in memory right now. Release it first." : "")}
       </div>`).join("") : `<div class="model"><span class="model-name" style="color:var(--text-faint)">No models installed</span></div>`;
     return `
       <div class="models">
@@ -1130,6 +1298,7 @@
   function wire() {
     buildModal();
     buildLogModal();
+    buildRemovalModal();
     buildSetupModal();
     buildGuideScreen();
     buildAboutScreen();
@@ -1163,6 +1332,7 @@
       else if (act === "expand") onExpand(svc);
       else if (act === "update") onUpdate(el.dataset.model);
       else if (act === "release") onRelease(el.dataset.model);
+      else if (act === "remove") openRemoval(el.dataset.kind, el.dataset.key);
       else if (act === "ocheck") { if (backend && backend.check_ollama_update) { toast("Checking for update…"); backend.check_ollama_update(el.dataset.model); } }
       else if (act === "csource") openSourceModal(el.dataset.path, el.dataset.name);
       else if (act === "ccheck") onComfyCheck(el.dataset.path);
@@ -1178,6 +1348,7 @@
       if (!el) return;
       const act = el.dataset.act;
       if (act === "apptoggle") onAppToggle(el.dataset.unit);
+      else if (act === "remove") openRemoval(el.dataset.kind, el.dataset.key);
       else if (act === "openurl") { if (el.dataset.url) openUrl(el.dataset.url); }
       else if (act === "addr") toggleAddr(el.dataset.key);
       else if (act === "copy") copyAddress(el);
@@ -1278,6 +1449,12 @@
         if (backend.notify) backend.notify.connect((msg) => toast(msg));
         if (backend.download_progress) backend.download_progress.connect((json) => {
           try { updateProgress(JSON.parse(json)); } catch (e) {}
+        });
+        if (backend.removal_preview) backend.removal_preview.connect((j) => {
+          try { renderRemovalPreview(JSON.parse(j)); } catch (e) {}
+        });
+        if (backend.removal_result) backend.removal_result.connect((j) => {
+          try { renderRemovalResult(JSON.parse(j)); } catch (e) {}
         });
         if (backend.app_update_result) backend.app_update_result.connect((json) => {
           try { showVersionResult(JSON.parse(json)); } catch (e) {}
