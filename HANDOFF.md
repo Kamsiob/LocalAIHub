@@ -24,11 +24,11 @@ QWebChannel. Stdlib only on the Python side.
 
 | Item | Value |
 |---|---|
-| Version | 1.3.2 |
-| Latest tag | `v1.3.2` |
+| Version | 2.0.0 |
+| Latest tag | `v2.0.0` |
 | Distribution | GitHub release: AppImage plus standalone tarball |
 | License | AGPLv3 |
-| Installed copy | `~/Applications/local-ai-hub-1.3.2-x86_64.AppImage` |
+| Installed copy | `~/Applications/local-ai-hub-2.0.0-x86_64.AppImage` |
 | Launcher | `~/.local/share/applications/local-ai-hub.desktop`, `Name=(Local) AI Hub` |
 
 Exactly one copy of the app is kept installed at any time, and it is always the
@@ -50,8 +50,34 @@ newest build. Verify with:
 | Networking | `hub/net.py` | Shared TLS context that finds the host trust store. Required because the bundled OpenSSL in a built artifact looks for certificates in the build distribution's directory. |
 | Version check | `hub/app_update.py` | Strictly user triggered. Nothing runs unless the button is pressed. |
 | Backend bridge | `app.py` | `Backend._collect()` assembles the whole state dict on a background thread every 5 seconds and pushes JSON over QWebChannel. Slots are the only surface the front end can call. |
-| Front end | `web/app.js` | `applyState()` then `render()`, `renderLayers()`, `renderApps()`. Event delegation per container. |
+| Front end | `web/app.js` | `applyState()` then `render()`, `renderLayers()`, `renderApps()`, `renderMachine()`. Event delegation per container. |
+| Operation lock | `app.py`, `Backend._run_exclusive` | The single mutual-exclusion point. Every mutating slot goes through it, and the 5 second refresh skips its tick rather than queueing behind it. Nothing destructive may be added that does not use it. |
+| Removal | `hub/removal.py` | Planner and fail-stop executor. `validate_path` is the only sanctioned way to turn a string into something deletable. `Manifest.compute_token` binds an execution to the exact plan that was previewed. |
+| Dependencies | `hub/deps.py` | What breaks if something is removed, read from real quadlets, container environments and harness config. Returns facts, never values, because container environments hold secrets. |
+| Disk | `hub/sizes.py` | Cached, background-computed. `_walk_size` refuses any path on a different filesystem from home, which is what keeps the slow external disk out. |
+| Memory | `hub/memory.py` | Unified versus discrete detection, and the Ollama unload path. |
 | Design tokens | `web/styles.css` | One stylesheet for both themes. Cards, the two group headers, the disclosure panels, the modals. |
+
+## Rules that v2.0 added, and why they are not negotiable
+
+- **Nothing is deleted that was not shown in a preview and confirmed.** Planning
+  and executing are separate. The executor re-plans and compares tokens, so a
+  system that changed between preview and confirmation refuses rather than
+  proceeds.
+- **Software and data never share a confirmation.** Named volumes are data, are
+  excluded by default, and need their own tick box that names the volume.
+- **A shared artifact is never removed** as part of removing one of its users. A
+  failed podman probe must never read as evidence that nothing shares it.
+- **Paths are validated, never constructed and deleted.** `validate_path`
+  resolves, checks containment under an allowed root, refuses the root itself,
+  and treats a symlink as a link rather than following it. Both sides of any
+  self-protection comparison go through `_norm`, because `/home` is a symlink to
+  `/var/home` here and an unnormalized comparison silently matches nothing.
+- **Stop at the first failure.** Report what was and was not done.
+- **The preview never prints a container's environment.** Real containers on this
+  machine hold API keys and database passwords there.
+- **Throwaway subjects only.** `tools/testbed.sh` creates and destroys everything
+  the removal tests touch. Nothing real is ever a test target.
 
 ## House rules
 
@@ -63,6 +89,9 @@ newest build. Verify with:
   alternative.
 - Keep exactly one copy of the app installed, always the newest.
 - Commit incrementally with clear messages.
+- Flathub is no longer a distribution target. The `flatpak/` files stay but are
+  not extended. The GitHub release and the AppImage are the only path, which
+  makes verifying a built artifact more important, not less.
 
 ## Distribution
 
@@ -92,3 +121,14 @@ of this at runtime.
 - Hermes is pinned to `docker.io/nousresearch/hermes-agent:v2026.8.3`.
   `~/.hermes` is mode 0700 owned by the container's mapped uid, so the host user
   cannot read its config directly.
+- The `ollama` binary is at `/usr/local/bin/ollama`, which resolves to
+  `/var/usrlocal/bin/ollama`, is owned by root and is outside `$HOME`. This is
+  why Ollama cannot be uninstalled by the app.
+- `ghcr.io/hacdias/webdav:latest` backs two containers, which makes the shared
+  image case real here rather than hypothetical.
+- `~/comfy-models` holds about 31 GiB that ComfyUI cannot load: there is no
+  active `extra_model_paths.yaml` and no symlink, and `~/ComfyUI/models/vae` and
+  `text_encoders` are empty. Reported to the user, deliberately untouched.
+- `du` on the model trees is fast because they hold few, large files. The tree
+  that is slow is the photo library on the external USB disk: 533 GiB across
+  about 70,000 files, 51 seconds cold. Never walk it.
