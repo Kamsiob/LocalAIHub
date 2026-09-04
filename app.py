@@ -67,6 +67,14 @@ class Backend(QObject):
         # services so start/stop and the install watcher treat them identically.
         self._layers = build_layers()
         self._services.update(self._layers)
+        # One global operation lock. Every mutating operation holds it for its
+        # whole duration and the periodic refresh skips while it is held, so a
+        # removal can never interleave with another removal, with a start/stop,
+        # or with the background scan reading the state it is changing. It
+        # refuses rather than queues: a second click should be told, not
+        # silently served later against a system that has already changed.
+        self._op_lock = threading.Lock()
+        self._op_name = ""
         self._last_failed: dict = {}   # for one-shot "stopped unexpectedly" alerts
         self._last_present: dict = {}  # for one-shot install/uninstall alerts
         self._ollama_updates: dict = {}   # model name -> last update-check result
@@ -324,15 +332,47 @@ class Backend(QObject):
             finally:
                 self._progress(False, "", 1.0, "done")
             self._emit_state()
-        threading.Thread(target=work, daemon=True).start()
+        self._run_exclusive("a model update", work)
 
     def _progress(self, active: bool, label: str, fraction: float, stage: str) -> None:
         self.download_progress.emit(json.dumps(
             {"active": active, "label": label, "fraction": fraction, "stage": stage}))
 
+    def _run_exclusive(self, name: str, fn) -> bool:
+        """Run fn on a background thread while holding the operation lock.
+
+        Returns False and tells the user when something else already holds it.
+        Every mutating slot goes through here, which is what makes "two removals
+        cannot overlap" a property of one function rather than a convention
+        fourteen call sites have to remember.
+        """
+        if not self._op_lock.acquire(blocking=False):
+            self.notify.emit(f"Busy with {self._op_name or 'another operation'}. "
+                             f"Try again when it finishes.")
+            return False
+        self._op_name = name
+
+        def work() -> None:
+            try:
+                fn()
+            finally:
+                self._op_name = ""
+                self._op_lock.release()
+
+        threading.Thread(target=work, daemon=True).start()
+        return True
+
     def _refresh_async(self) -> None:
         def work() -> None:
-            payload = self._collect()
+            # Skip the tick rather than queue behind whatever is running. A
+            # refresh is worth nothing if it reports state that an operation in
+            # flight is about to invalidate, and the next tick is 5s away.
+            if not self._op_lock.acquire(blocking=False):
+                return
+            try:
+                payload = self._collect()
+            finally:
+                self._op_lock.release()
             self.state_changed.emit(json.dumps(payload))
         threading.Thread(target=work, daemon=True).start()
 
@@ -362,7 +402,7 @@ class Backend(QObject):
                 self.state_changed.emit(json.dumps(self._collect()))
                 time.sleep(1)
 
-        threading.Thread(target=work, daemon=True).start()
+        self._run_exclusive("start or stop a service", work)
 
     @Slot(str, bool)
     def set_app(self, unit: str, turn_on: bool) -> None:
@@ -389,7 +429,7 @@ class Backend(QObject):
                 self.state_changed.emit(json.dumps(self._collect()))
                 time.sleep(1)
 
-        threading.Thread(target=work, daemon=True).start()
+        self._run_exclusive("start or stop a service", work)
 
     @Slot(str)
     def restart_service(self, key: str) -> None:
@@ -415,7 +455,7 @@ class Backend(QObject):
                 self.state_changed.emit(json.dumps(self._collect()))
                 time.sleep(1)
 
-        threading.Thread(target=work, daemon=True).start()
+        self._run_exclusive("restart a service", work)
 
     @Slot(str)
     def check_ollama_update(self, name: str) -> None:
@@ -466,7 +506,7 @@ class Backend(QObject):
                 self._progress(False, "", 1.0, "done")
             self.state_changed.emit(json.dumps(self._collect()))
 
-        threading.Thread(target=work, daemon=True).start()
+        self._run_exclusive("a model update", work)
 
     @Slot(result=str)
     def get_theme(self) -> str:
@@ -517,7 +557,7 @@ class Backend(QObject):
                 self.setup_result.emit(json.dumps(setup_check.run_checks()))
             except Exception:
                 pass
-        threading.Thread(target=work, daemon=True).start()
+        self._run_exclusive("a setup fix", work)
 
     @Slot(result=str)
     def get_app_meta(self) -> str:
